@@ -1,0 +1,167 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================================
+   Base
+   ===================================================================== */
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-200;
+}
+
+html.dark body {
+  @apply bg-[#060a14] text-slate-100;
+}
+
+/* Thin scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  @apply bg-slate-700;
+}
+
+/* =====================================================================
+   Components
+   ===================================================================== */
+@layer components {
+  .card {
+    @apply rounded-xl bg-white ring-1 ring-slate-200/80 shadow-card
+           dark:bg-[#121a2b] dark:ring-slate-800/80 transition-colors;
+  }
+
+  .card-header {
+    @apply px-5 py-4 border-b border-slate-200/80 dark:border-slate-800/80
+           flex items-center justify-between;
+  }
+
+  .card-title {
+    @apply text-sm font-semibold text-slate-900 dark:text-slate-100
+           flex items-center gap-2;
+  }
+
+  .card-body {
+    @apply p-5;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2
+           text-sm font-medium transition focus:outline-none focus:ring-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand-500 text-white hover:bg-brand-600
+           focus:ring-brand-400 shadow-sm;
+  }
+
+  .btn-secondary {
+    @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200
+           dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700
+           focus:ring-slate-300 dark:focus:ring-slate-600;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-500 text-white hover:bg-red-600
+           focus:ring-red-400;
+  }
+
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100
+           dark:text-slate-300 dark:hover:bg-slate-800
+           focus:ring-slate-300 dark:focus:ring-slate-600;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2
+           text-sm text-slate-900 placeholder:text-slate-400
+           focus:border-brand-400 focus:ring-2 focus:ring-brand-200 focus:outline-none
+           dark:border-slate-700 dark:bg-[#0f172a] dark:text-slate-100
+           dark:placeholder:text-slate-500 dark:focus:ring-brand-900/60
+           transition;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs
+           font-medium;
+  }
+
+  .chip {
+    @apply inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5
+           text-xs font-medium text-slate-700 font-mono
+           dark:bg-slate-800 dark:text-slate-300;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium
+           text-slate-600 hover:bg-slate-100 hover:text-slate-900
+           dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100
+           transition;
+  }
+
+  .sidebar-link.active {
+    @apply bg-brand-50 text-brand-700 hover:bg-brand-100
+           dark:bg-brand-500/10 dark:text-brand-300 dark:hover:bg-brand-500/15;
+  }
+
+  .stat-card {
+    @apply card p-5 relative overflow-hidden;
+  }
+
+  .hero-glow::before {
+    content: "";
+    @apply absolute -top-24 -right-16 h-64 w-64 rounded-full
+           bg-brand-400/10 blur-3xl pointer-events-none;
+  }
+
+  .divide-subtle > * + * {
+    @apply border-t border-slate-200/80 dark:border-slate-800/80;
+  }
+
+  .muted {
+    @apply text-slate-500 dark:text-slate-400;
+  }
+
+  .heading {
+    @apply text-slate-900 dark:text-slate-100;
+  }
+
+  /* Syntax-highlight-ish JSON viewer */
+  .json-viewer {
+    @apply font-mono text-xs rounded-lg bg-slate-50 p-3 overflow-x-auto
+           dark:bg-slate-900/70 dark:text-slate-300 leading-6;
+  }
+}
+
+/* Grid background for auth pages */
+.auth-bg {
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(59, 139, 253, 0.08) 0px, transparent 60%),
+    radial-gradient(at 100% 0%, rgba(37, 102, 240, 0.06) 0px, transparent 50%);
+}
+
+html.dark .auth-bg {
+  background-color: #060a14;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(59, 139, 253, 0.18) 0px, transparent 60%),
+    radial-gradient(at 100% 100%, rgba(37, 102, 240, 0.12) 0px, transparent 50%);
+}

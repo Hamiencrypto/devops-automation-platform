@@ -1,0 +1,94 @@
+name: devops-mcp-platform
+
+services:
+
+  # ---------------------------------------------------------------
+  # PostgreSQL database
+  # ---------------------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: mcp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: devops_mcp
+      POSTGRES_USER: devops
+      POSTGRES_PASSWORD: devops_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devops -d devops_mcp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "5432:5432"
+    networks:
+      - devops-mcp-net
+
+  # ---------------------------------------------------------------
+  # FastAPI backend
+  # ---------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mcp-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://devops:devops_pass@db:5432/devops_mcp
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-prod}
+      # Set to "false" to run fully open (no login, single system user)
+      ENABLE_AUTH: "true"
+      CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
+      LOG_LEVEL: INFO
+      ENVIRONMENT: development
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount Docker socket so the backend can manage containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount a shared folder for log-analysis demos
+      - ./sample_data:/data:ro
+    networks:
+      - devops-mcp-net
+
+  # ---------------------------------------------------------------
+  # Next.js frontend
+  # ---------------------------------------------------------------
+  # IMPORTANT: NEXT_PUBLIC_* vars are inlined into the browser bundle
+  # AT BUILD TIME. They must be URLs reachable from the user's browser
+  # (i.e., http://localhost:8000), NOT the Docker service DNS name.
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:8000"
+        NEXT_PUBLIC_WS_URL: "ws://localhost:8000"
+    container_name: mcp-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:8000"
+      NEXT_PUBLIC_WS_URL: "ws://localhost:8000"
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    networks:
+      - devops-mcp-net
+
+# ---------------------------------------------------------------
+# Shared network for inter-service DNS
+# ---------------------------------------------------------------
+networks:
+  devops-mcp-net:
+    name: devops-mcp-net
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: mcp_postgres_data
