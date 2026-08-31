@@ -69,7 +69,10 @@ class Settings(BaseSettings):
     # Off by default. The platform runs fine on regex alone; turning this on
     # adds natural-language understanding and a per-request API cost.
     ENABLE_LLM: bool = False
-    LLM_PROVIDER: str = "anthropic"   # anthropic | openai
+    LLM_PROVIDER: str = "ollama"      # ollama | anthropic | openai
+    # Ollama runs on the host, not in the compose network, so the backend
+    # container reaches it through Docker's host gateway alias.
+    OLLAMA_HOST: str = "http://host.docker.internal:11434"
     LLM_MODEL: str = "claude-haiku-4-5"
     LLM_API_KEY: str = ""
     LLM_THRESHOLD: float = 0.65       # regex confidence below this asks the model

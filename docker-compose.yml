@@ -46,7 +46,8 @@ services:
       LOG_LEVEL: INFO
       ENVIRONMENT: development
       ENABLE_LLM: ${ENABLE_LLM:-false}
-      LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
       LLM_MODEL: ${LLM_MODEL:-claude-haiku-4-5}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_THRESHOLD: ${LLM_THRESHOLD:-0.65}

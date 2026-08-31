@@ -211,6 +211,122 @@ class OpenAIProvider(LLMProvider):
             return False
 
 
+class OllamaProvider(LLMProvider):
+    """
+    Local inference via Ollama.
+
+    Chosen over a hosted API for a reason worth stating plainly: DevOps
+    commands carry infrastructure details — container names, paths, ports,
+    cluster topology. Sending those to a third party is a data-egress decision
+    many operators cannot make. Running the model on the same host removes
+    that question, and removes the API bill with it.
+
+    The trade-off is capability. A 3B model is meaningfully weaker than a
+    frontier model and will sometimes propose the wrong tool. That is a
+    usability cost, not a safety one: every proposal is still checked against
+    the tool's JSON Schema and its operational policy before anything runs, so
+    a weaker model produces more rejections, never a wider blast radius.
+    """
+
+    def __init__(self, host, model, timeout=120.0, temperature=0.0):
+        self.host = host.rstrip("/")
+        self.model = model
+        self.timeout = timeout
+        # Deterministic decoding: the same sentence should resolve to the same
+        # tool call every time. Creativity is not a virtue here.
+        self.temperature = temperature
+
+    def complete(self, *, system, messages, tools, max_tokens):
+        import json
+
+        import requests
+
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "system", "content": system}, *messages],
+            "stream": False,
+            "options": {"temperature": self.temperature, "num_predict": max_tokens},
+        }
+        if tools:
+            payload["tools"] = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": t["name"],
+                        "description": t["description"],
+                        "parameters": t["input_schema"],
+                    },
+                }
+                for t in tools
+            ]
+
+        try:
+            resp = requests.post(f"{self.host}/api/chat", json=payload, timeout=self.timeout)
+        except requests.exceptions.ConnectionError as exc:
+            raise LLMError(
+                f"cannot reach Ollama at {self.host}. Is `ollama serve` running?"
+            ) from exc
+        except requests.exceptions.Timeout as exc:
+            raise LLMError(
+                f"Ollama did not respond within {self.timeout}s. A cold model load can "
+                "exceed this; retry once the model is resident."
+            ) from exc
+        except requests.exceptions.RequestException as exc:
+            raise LLMError(f"Ollama request failed: {exc}") from exc
+
+        if resp.status_code == 404:
+            raise LLMError(f"model {self.model!r} is not pulled. Run: ollama pull {self.model}")
+        if resp.status_code >= 400:
+            raise LLMError(f"Ollama returned {resp.status_code}: {resp.text[:200]}")
+
+        try:
+            data = resp.json()
+        except ValueError as exc:
+            raise LLMError("Ollama returned a non-JSON response") from exc
+
+        message = data.get("message") or {}
+        calls = []
+        for tc in message.get("tool_calls") or []:
+            fn = tc.get("function") or {}
+            name = fn.get("name")
+            if not name:
+                continue
+            args = fn.get("arguments")
+            # Usually an object, but some models emit a JSON string. Accept
+            # both rather than silently dropping the call.
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args or "{}")
+                except json.JSONDecodeError:
+                    log.warning("Ollama returned unparseable arguments for %s", name)
+                    continue
+            if not isinstance(args, dict):
+                log.warning("Ollama returned non-object arguments for %s", name)
+                continue
+            calls.append(ToolCall(name=name, arguments=args))
+
+        return ProviderResponse(
+            tool_calls=calls,
+            text=message.get("content") or "",
+            input_tokens=data.get("prompt_eval_count", 0),
+            output_tokens=data.get("eval_count", 0),
+            model=self.model,
+        )
+
+    def ping(self) -> bool:
+        try:
+            import requests
+
+            resp = requests.get(f"{self.host}/api/tags", timeout=5)
+            if resp.status_code != 200:
+                return False
+            names = {m.get("name", "") for m in resp.json().get("models", [])}
+            return any(n == self.model or n.startswith(f"{self.model}:") for n in names)
+        except Exception as exc:
+            log.warning("Ollama ping failed: %s", exc)
+            return False
+
+
 def build_provider(settings) -> LLMProvider | None:
     """
     Factory driven by config. Returns None when LLM is disabled or unconfigured
@@ -219,11 +335,19 @@ def build_provider(settings) -> LLMProvider | None:
     if not settings.ENABLE_LLM:
         log.info("LLM disabled by config; using regex intent engine only")
         return None
+    provider = settings.LLM_PROVIDER.lower()
+
+    # Ollama runs locally and needs no credential; the key check below applies
+    # only to hosted providers.
+    if provider == "ollama":
+        return OllamaProvider(
+            settings.OLLAMA_HOST, settings.LLM_MODEL, settings.LLM_TIMEOUT_SECONDS
+        )
+
     if not settings.LLM_API_KEY:
         log.warning("ENABLE_LLM=true but LLM_API_KEY is empty; falling back to regex only")
         return None
 
-    provider = settings.LLM_PROVIDER.lower()
     try:
         if provider == "anthropic":
             return AnthropicProvider(
