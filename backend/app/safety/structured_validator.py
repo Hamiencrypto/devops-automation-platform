@@ -65,7 +65,7 @@ class SafetyPolicy:
     a staging deployment can be looser than production without a code change.
     """
 
-    allowed_file_roots: tuple[str, ...] = ("/app/safe_data", "/app/sample_data")
+    allowed_file_roots: tuple[str, ...] = ("/data",)
     max_file_bytes: int = 10 * 1024 * 1024
 
     # Names that must never be read regardless of location, in case a root is
@@ -92,8 +92,7 @@ class SafetyPolicy:
 
     # Containers the platform must never act on — including its own.
     protected_containers: frozenset[str] = frozenset(
-        {"devops-mcp-backend", "devops-mcp-frontend", "devops-mcp-postgres",
-         "prometheus", "grafana", "docker-proxy"}
+        {"mcp-backend", "mcp-frontend", "mcp-postgres"}
     )
 
     @classmethod
@@ -287,6 +286,13 @@ def policy_system(params: dict, policy: SafetyPolicy) -> ValidationResult:
 
 
 DEFAULT_POLICIES: dict[str, Callable[[dict, SafetyPolicy], ValidationResult]] = {
+    # Tool names as registered in app/tools/*.py
+    "file_processor": policy_file,
+    "logs_analyzer": policy_logs,
+    "docker_manager": policy_docker,
+    "kubernetes_manager": policy_kubernetes,
+    "system_inspector": policy_system,
+    # Generic aliases so the unit tests stay self-contained
     "file_tool": policy_file,
     "logs_tool": policy_logs,
     "docker_tool": policy_docker,

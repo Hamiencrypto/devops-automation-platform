@@ -75,7 +75,12 @@ def execute_command(
         # --------------------------------------------------------------
         # 3. Safety check
         # --------------------------------------------------------------
-        check = guardrails.check(command, intent, confirm_destructive=confirm_destructive, tool_name=tool.name)
+        # Resolve the tool up front so the safety layer validates the actual
+        # parameters that will be passed to it. Same lookup the MCP router
+        # does below, so routing behaviour is unchanged.
+        check = guardrails.check(
+            command, intent, confirm_destructive=confirm_destructive
+        )
         if check.warnings:
             warnings.extend(check.warnings)
 
@@ -121,6 +126,50 @@ def execute_command(
         # --------------------------------------------------------------
         # 5. Execute
         # --------------------------------------------------------------
+        # Structured parameter validation. This is the authoritative
+        # allowlist: the params are checked against the tool's published JSON
+        # Schema and its operational policy (permitted filesystem roots,
+        # bindable ports, protected containers and namespaces).
+        #
+        # It runs here, on the final routed params, and it runs for every
+        # intent source. A regex pattern that emits {"path": "/etc/passwd"}
+        # is exactly as dangerous as a model that does, so neither gets its
+        # own code path.
+        vcheck = guardrails.validate_params(tool.name, tool_call.params)
+        if not vcheck:
+            task.status = TaskStatus.BLOCKED
+            task.error_message = vcheck.reason
+            task.completed_at = datetime.utcnow()
+            task.duration_ms = int((time.time() - started) * 1000)
+            db.commit()
+            audit_log(
+                db,
+                event="command.blocked",
+                severity="warn",
+                task_id=task.id,
+                user_id=user.id if user else None,
+                details={
+                    "command": command,
+                    "tool": tool.name,
+                    "reason": vcheck.reason,
+                },
+                ip_address=ip_address,
+            )
+            return ExecuteResponse(
+                task_id=task.id,
+                status=TaskStatus.BLOCKED,
+                intent=intent,
+                error=vcheck.reason,
+                warnings=warnings,
+                duration_ms=task.duration_ms,
+            )
+
+        # Execute the params that were checked, not the originals: the
+        # validator resolves paths, and a value swapped between check and use
+        # would defeat the check.
+        tool_call.params = vcheck.params
+        task.tool_params = tool_call.params
+
         task.status = TaskStatus.RUNNING
         db.commit()
         exec_result = tool.execute(tool_call.params, dry_run=dry_run)

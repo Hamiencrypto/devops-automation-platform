@@ -11,6 +11,8 @@ from typing import Deque
 
 from app.config import settings
 from app.intent.engine import intent_engine
+from app.mcp.registry import tool_registry
+from app.safety.structured_validator import SafetyPolicy, StructuredOutputValidator
 from app.schemas import IntentResult
 
 logger = logging.getLogger(__name__)
@@ -32,7 +34,7 @@ class SafetyCheck:
 # Blocked / banned token list
 # ---------------------------------------------------------------------
 BANNED_TOKENS = [
-    r"\brm\s+-rf\s+/\b",
+    r"\brm\s+-[rf]{1,2}\s+/",   # trailing \b never matches: "/" is not a word char
     r":\s*\(\s*\)\s*\{.*\}\s*;.*:\s*&",  # fork bomb
     r"\bmkfs\.",  # filesystem formatting
     r"\bdd\s+if=.*of=/dev/",  # disk writes
@@ -43,16 +45,17 @@ BANNED_RE = [re.compile(p, re.IGNORECASE) for p in BANNED_TOKENS]
 
 
 class Guardrails:
-
-    def __init__(self) -> None:
-        self._validator = StructuredOutputValidator(tool_registry, SafetyPolicy())
-
-    def __init__(self) -> None:
-        self._validator = StructuredOutputValidator(tool_registry, SafetyPolicy())
     """Evaluates whether a natural-language command is safe to execute."""
 
+    def __init__(self) -> None:
+        self._validator = StructuredOutputValidator(tool_registry, SafetyPolicy())
+
     def check(
-        self, command: str, intent: IntentResult, confirm_destructive: bool = False
+        self,
+        command: str,
+        intent: IntentResult,
+        confirm_destructive: bool = False,
+        tool_name: str | None = None,
     ) -> SafetyCheck:
         warnings: list[str] = []
 
@@ -79,6 +82,31 @@ class Guardrails:
                 "Double-check the action."
             )
 
+        # 3b. Structured parameter validation on the resolved tool call.
+        #
+        # This is the authoritative allowlist. Steps 1-3 are bounded sanity
+        # checks on the sentence; this step checks the actual tool call that
+        # will run: the tool must be registered, its arguments must satisfy
+        # the published JSON Schema, and they must pass the tool's operational
+        # policy (which filesystem roots, which ports, which namespaces).
+        #
+        # It runs for every intent source. A regex pattern that emits
+        # {"path": "/etc/passwd"} is exactly as dangerous as a model that
+        # does, so neither gets its own code path.
+        if tool_name:
+            result = self._validator.validate_tool_call(tool_name, intent.entities or {})
+            if not result:
+                logger.info("blocked %s: %s", tool_name, result.reason)
+                return SafetyCheck(
+                    allowed=False,
+                    reason=result.reason,
+                    warnings=warnings,
+                )
+            # Use the normalised parameters downstream. The validator resolves
+            # paths, and the value that was checked must be the value used —
+            # otherwise a symlink swapped between check and use would slip past.
+            intent.entities = result.params
+
         # 4. Destructive operations require explicit user confirmation
         if (
             intent_engine.is_destructive(intent.intent)
@@ -96,6 +124,11 @@ class Guardrails:
             )
 
         return SafetyCheck(allowed=True, reason="", warnings=warnings)
+
+
+    def validate_params(self, tool_name: str, params: dict):
+        """Validate final tool parameters against schema and policy."""
+        return self._validator.validate_tool_call(tool_name, params or {})
 
 
 guardrails = Guardrails()
