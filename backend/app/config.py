@@ -63,6 +63,23 @@ class Settings(BaseSettings):
     # ----------------------------------------------------------------
     LOG_LEVEL: str = "INFO"
 
+    # ----------------------------------------------------------------
+    # LLM intent layer
+    # ----------------------------------------------------------------
+    # Off by default. The platform runs fine on regex alone; turning this on
+    # adds natural-language understanding and a per-request API cost.
+    ENABLE_LLM: bool = False
+    LLM_PROVIDER: str = "anthropic"   # anthropic | openai
+    LLM_MODEL: str = "claude-haiku-4-5"
+    LLM_API_KEY: str = ""
+    LLM_THRESHOLD: float = 0.65       # regex confidence below this asks the model
+    LLM_MAX_TOKENS: int = 512
+    LLM_TIMEOUT_SECONDS: float = 20.0
+    LLM_CACHE_TTL: int = 86_400
+    LLM_CACHE_MAX_ENTRIES: int = 2_000
+    LLM_MAX_COMMAND_CHARS: int = 1_000
+    LLM_DAILY_TOKEN_BUDGET: int = 50_000
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

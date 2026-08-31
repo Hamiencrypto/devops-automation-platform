@@ -11,6 +11,8 @@ import time
 from datetime import datetime
 from typing import Any
 
+from functools import lru_cache
+
 from sqlalchemy.orm import Session
 
 from app.intent.engine import intent_engine
@@ -18,9 +20,32 @@ from app.mcp.registry import tool_registry
 from app.mcp.router import MCPRouterError, mcp_router
 from app.models import Result, Task, TaskStatus, User
 from app.safety import SafetyError, audit_log, guardrails, rate_limiter
-from app.schemas import ExecuteResponse
+from app.config import settings
+from app.intent.llm_engine import HybridIntentEngine, TTLCache
+from app.intent.providers import build_provider
+from app.schemas import ExecuteResponse, IntentResult
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def get_intent_engine() -> HybridIntentEngine:
+    """
+    Built once per process: constructing a provider per request would open a
+    new HTTP client each time and throw away the cache.
+
+    With ENABLE_LLM=false, build_provider returns None and the engine is a
+    thin pass-through to the existing regex engine — same behaviour as before.
+    """
+    return HybridIntentEngine(
+        regex_engine=intent_engine,
+        registry=tool_registry,
+        provider=build_provider(settings),
+        threshold=settings.LLM_THRESHOLD,
+        max_tokens=settings.LLM_MAX_TOKENS,
+        max_command_chars=settings.LLM_MAX_COMMAND_CHARS,
+        cache=TTLCache(settings.LLM_CACHE_TTL, settings.LLM_CACHE_MAX_ENTRIES),
+    )
 
 
 def execute_command(
@@ -67,7 +92,21 @@ def execute_command(
         # --------------------------------------------------------------
         # 2. Intent detection
         # --------------------------------------------------------------
-        intent = intent_engine.detect(command)
+        # Regex first, model only on low confidence. The hybrid engine
+        # returns its own Intent type; convert to IntentResult so everything
+        # downstream (guardrails, router, tools) is unchanged.
+        _hybrid = get_intent_engine().detect(command)
+        intent = IntentResult(
+            intent=_hybrid.name,
+            confidence=_hybrid.confidence,
+            entities=_hybrid.entities,
+            matched_pattern=_hybrid.reason or None,
+        )
+        logger.info(
+            "intent %s via %s (confidence=%.2f, %dms, %d tokens)",
+            _hybrid.name, _hybrid.source, _hybrid.confidence,
+            _hybrid.latency_ms, _hybrid.tokens_used,
+        )
         task.detected_intent = intent.intent
         task.intent_confidence = intent.confidence
         task.entities = intent.entities
