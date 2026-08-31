@@ -45,6 +45,11 @@ services:
       CORS_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000"]'
       LOG_LEVEL: INFO
       ENVIRONMENT: development
+      ENABLE_LLM: ${ENABLE_LLM:-false}
+      LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
+      LLM_MODEL: ${LLM_MODEL:-claude-haiku-4-5}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_THRESHOLD: ${LLM_THRESHOLD:-0.65}
     ports:
       - "8000:8000"
     volumes:
