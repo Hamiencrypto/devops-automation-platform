@@ -23,8 +23,11 @@ logger = logging.getLogger(__name__)
 class FileTool(MCPTool):
     name = "file_processor"
     description = (
-        "Inspect files: show metadata, count lines/words/chars, display "
-        "contents, and validate structured formats (JSON / YAML / XML)."
+        "Inspect a single file at a given path. Use this to show file "
+        "metadata (size, type, modified time), to count lines, words or "
+        "characters, to read or display the contents, and to check that a "
+        "JSON, YAML or XML file is well formed. For log analysis prefer the "
+        "logs tool."
     )
     category = "file"
     destructive = False

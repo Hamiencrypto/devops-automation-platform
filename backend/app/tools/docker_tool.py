@@ -27,8 +27,13 @@ logger = logging.getLogger(__name__)
 class DockerTool(MCPTool):
     name = "docker_manager"
     description = (
-        "Manage Docker containers: deploy images, list running containers, "
-        "stop, remove, inspect status, and read logs."
+        "Run and manage Docker containers. Use this to start, launch, deploy, "
+        "set up, spin up, install or create any service, application, database "
+        "or server (nginx, redis, mongodb, postgres, rabbitmq, and so on), "
+        "optionally on a given port. Also use it to list, show or find running "
+        "containers, to stop, kill, remove or delete a container, to inspect "
+        "its status, and to read its logs. This is the right tool for any "
+        "request about running software on this host."
     )
     category = "docker"
     destructive = False  # Individual actions (stop/remove) are flagged separately

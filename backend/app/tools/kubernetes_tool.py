@@ -23,8 +23,11 @@ logger = logging.getLogger(__name__)
 class KubernetesTool(MCPTool):
     name = "kubernetes_manager"
     description = (
-        "Interact with a Kubernetes cluster: list pods, deploy images, "
-        "scale deployments. Requires kubectl to be installed and a reachable "
+        "Operate on a Kubernetes cluster: list pods, deploy an image as a "
+        "deployment, and scale a deployment to a number of replicas. Only use "
+        "this when the request explicitly mentions Kubernetes, k8s, pods, "
+        "nodes, namespaces or replicas. For plain containers on this host, "
+        "use the Docker tool instead. Requires kubectl and a reachable "
         "cluster context."
     )
     category = "kubernetes"

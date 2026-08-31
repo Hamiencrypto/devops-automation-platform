@@ -32,8 +32,11 @@ TS_RE = re.compile(
 class LogsTool(MCPTool):
     name = "logs_analyzer"
     description = (
-        "Analyze log files: count errors/warnings, summarize, show last N "
-        "lines, and extract timestamps."
+        "Read and analyse a log file at a given path. Use this to check, "
+        "review, examine or look through logs, to count or find errors, "
+        "warnings and failures, to summarise what went wrong, to show the "
+        "last N lines (tail), and to extract timestamps. Use this whenever "
+        "the request is about what a log file contains."
     )
     category = "logs"
     destructive = False

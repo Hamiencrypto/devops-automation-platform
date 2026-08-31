@@ -21,8 +21,11 @@ logger = logging.getLogger(__name__)
 class SystemTool(MCPTool):
     name = "system_inspector"
     description = (
-        "Report host information: OS, CPU count, load averages, memory usage "
-        "(approximate), disk usage, and uptime."
+        "Report the health and resource usage of this host. Use this when "
+        "asked whether the system is healthy or under load, how much memory "
+        "or RAM is in use, how much disk space is free or whether the host is "
+        "running out of space, what the CPU load is, how long the machine has "
+        "been up, or which operating system it runs. Read-only."
     )
     category = "system"
     destructive = False
