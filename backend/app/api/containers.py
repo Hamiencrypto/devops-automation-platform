@@ -2,8 +2,10 @@
 
 These endpoints let the frontend drive stop/remove actions from the UI
 (click a row's action button) instead of having to type a natural
-language command. They reuse the DockerTool so the same audit trail and
-safety checks apply.
+language command. Every call routes through
+`app.services.tool_execution.resolve_and_validate()` before touching the
+tool — the same structured-validator boundary the natural-language path
+goes through — so the protected-container policy applies here too.
 """
 
 from __future__ import annotations
@@ -17,9 +19,9 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
 from app.database import get_db
-from app.mcp.registry import tool_registry
 from app.models import Result, Task, TaskStatus, User
-from app.safety import audit_log, guardrails
+from app.safety import audit_log
+from app.services.tool_execution import resolve_and_validate
 from app.tools.base import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -27,11 +29,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _docker():
-    tool = tool_registry.get("docker_manager")
-    if tool is None:
+def _resolve_and_validate(params: dict[str, Any]):
+    """Resolve + validate against docker_manager's schema and policy. Raises
+    the same way for an unregistered tool or a denied call, so a caller
+    can't reach `tool.execute()` without going through this."""
+    resolution = resolve_and_validate("docker_manager", params)
+    if resolution.tool is None:
         raise HTTPException(status_code=503, detail="Docker tool is not loaded")
-    return tool
+    if not resolution.ok:
+        raise HTTPException(status_code=403, detail=resolution.reason)
+    return resolution
 
 
 def _persist(
@@ -87,8 +94,9 @@ def _persist(
 def list_containers(
     user: User = Depends(get_current_user),
 ):
-    tool = _docker()
-    res = tool.execute({"action": "list"})
+    resolution = _resolve_and_validate({"action": "list"})
+    tool = resolution.tool
+    res = tool.execute(resolution.params)
     if not res.success:
         raise HTTPException(status_code=502, detail=res.stderr or res.summary)
     containers = res.data.get("containers", []) if res.data else []
@@ -108,12 +116,9 @@ def stop_container_by_id(
 ):
     if not container_id or len(container_id) < 3:
         raise HTTPException(status_code=400, detail="Invalid container identifier")
-    tool = _docker()
-    params = {"action": "stop", "container": container_id}
-    check = guardrails.validate_params("docker_manager", params)
-    if not check:
-        raise HTTPException(status_code=403, detail=check.reason)
-    params = check.params
+    resolution = _resolve_and_validate({"action": "stop", "container": container_id})
+    tool = resolution.tool
+    params = resolution.params
     res = tool.execute(params)
     task = _persist(
         db,
@@ -141,12 +146,9 @@ def remove_container_by_id(
 ):
     if not container_id or len(container_id) < 3:
         raise HTTPException(status_code=400, detail="Invalid container identifier")
-    tool = _docker()
-    params = {"action": "remove", "container": container_id}
-    check = guardrails.validate_params("docker_manager", params)
-    if not check:
-        raise HTTPException(status_code=403, detail=check.reason)
-    params = check.params
+    resolution = _resolve_and_validate({"action": "remove", "container": container_id})
+    tool = resolution.tool
+    params = resolution.params
     res = tool.execute(params)
     task = _persist(
         db,

@@ -3,6 +3,7 @@
 from functools import lru_cache
 from typing import List
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -89,6 +90,23 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def _auth_required_outside_dev(self) -> "Settings":
+        """
+        Fail closed: `ENABLE_AUTH=false` is only permitted when `ENVIRONMENT`
+        is explicitly "development". Anything else — staging, production, an
+        unset default, a typo — must not boot with every endpoint open. The
+        failure mode being guarded against is silent: a deploy that comes up
+        cheerfully with no authentication is not something anyone will
+        notice from the outside until it's found the hard way.
+        """
+        if self.ENVIRONMENT.strip().lower() != "development" and not self.ENABLE_AUTH:
+            raise ValueError(
+                f"ENABLE_AUTH must be true when ENVIRONMENT={self.ENVIRONMENT!r} "
+                "(only ENVIRONMENT=development may run with auth disabled)"
+            )
+        return self
 
 
 @lru_cache()

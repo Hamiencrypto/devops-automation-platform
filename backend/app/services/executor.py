@@ -25,6 +25,7 @@ from app.config import settings
 from app.intent.llm_engine import HybridIntentEngine, TTLCache
 from app.intent.providers import build_provider
 from app.services.llm_budget import DailyTokenBudget
+from app.services.tool_execution import resolve_and_validate
 from app.schemas import ExecuteResponse, IntentResult
 
 logger = logging.getLogger(__name__)
@@ -174,26 +175,27 @@ def execute_command(
         task.selected_tool = tool_call.tool_name
         task.tool_params = tool_call.params
 
-        tool = tool_registry.get(tool_call.tool_name)
-        if tool is None:
-            raise MCPRouterError(f"Tool '{tool_call.tool_name}' is not loaded")
-
         # --------------------------------------------------------------
-        # 5. Execute
+        # 5. Resolve + validate (the authoritative allowlist)
         # --------------------------------------------------------------
-        # Structured parameter validation. This is the authoritative
-        # allowlist: the params are checked against the tool's published JSON
-        # Schema and its operational policy (permitted filesystem roots,
-        # bindable ports, protected containers and namespaces).
+        # `resolve_and_validate` is the one sanctioned path from a tool name
+        # to a tool that's safe to execute: it checks the tool is registered
+        # and that its params satisfy the tool's published JSON Schema and
+        # operational policy (permitted filesystem roots, bindable ports,
+        # protected containers and namespaces).
         #
         # It runs here, on the final routed params, and it runs for every
         # intent source. A regex pattern that emits {"path": "/etc/passwd"}
         # is exactly as dangerous as a model that does, so neither gets its
         # own code path.
-        vcheck = guardrails.validate_params(tool.name, tool_call.params)
-        if not vcheck:
+        resolution = resolve_and_validate(tool_call.tool_name, tool_call.params)
+        if resolution.tool is None:
+            raise MCPRouterError(f"Tool '{tool_call.tool_name}' is not loaded")
+        tool = resolution.tool
+
+        if not resolution.ok:
             task.status = TaskStatus.BLOCKED
-            task.error_message = vcheck.reason
+            task.error_message = resolution.reason
             task.completed_at = datetime.utcnow()
             task.duration_ms = int((time.time() - started) * 1000)
             db.commit()
@@ -206,19 +208,19 @@ def execute_command(
                 details={
                     "command": command,
                     "tool": tool.name,
-                    "reason": vcheck.reason,
+                    "reason": resolution.reason,
                 },
                 ip_address=ip_address,
                 intent_source=intent_source,
                 llm_tokens_used=llm_tokens_used,
                 llm_latency_ms=llm_latency_ms,
-                validation_result=f"denied: {vcheck.reason}",
+                validation_result=f"denied: {resolution.reason}",
             )
             return ExecuteResponse(
                 task_id=task.id,
                 status=TaskStatus.BLOCKED,
                 intent=intent,
-                error=vcheck.reason,
+                error=resolution.reason,
                 warnings=warnings,
                 duration_ms=task.duration_ms,
             )
@@ -226,7 +228,7 @@ def execute_command(
         # Execute the params that were checked, not the originals: the
         # validator resolves paths, and a value swapped between check and use
         # would defeat the check.
-        tool_call.params = vcheck.params
+        tool_call.params = resolution.params
         task.tool_params = tool_call.params
 
         task.status = TaskStatus.RUNNING

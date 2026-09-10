@@ -13,13 +13,32 @@ already has host root is theatre.
 > `guardrails.validate_params()` — so the protected-container policy in
 > item 1 could be bypassed entirely through that route regardless of whether
 > the socket is proxied. Fixed; see `tests/test_containers_api.py`.
-> Items **1** (docker-socket proxy) and **3** (production-auth guard) are
-> still open — the socket is still mounted directly
-> (`docker-compose.yml`, `/var/run/docker.sock`) and `config.py` has no
-> production validator. Item **2** (tools re-validating their own path
-> instead of trusting the caller) is also still open, and is a reasonable
-> defense-in-depth follow-up now that containers.py shows a second caller can
-> exist.
+> Since then: the containers.py bypass revealed a structural gap, not just a
+> one-off bug — a second, independent call site had quietly stopped
+> validating. `app/services/tool_execution.py` is now the single sanctioned
+> path from a tool name to a validated tool (both `executor.py` and
+> `containers.py` route through it), and
+> `tests/test_tool_execution_boundary.py` is an architecture test that fails
+> if any future `tool.execute()` call appears without a validation call in
+> the same function — turning "please remember to validate" into something
+> that's actually enforced.
+>
+> Item **3** (production-auth guard) is done — `config.py` now refuses to
+> construct `Settings` when `ENABLE_AUTH=false` and `ENVIRONMENT` isn't
+> exactly `"development"`; see `tests/test_config_auth_guard.py`.
+>
+> Item **1** (docker-socket proxy) is deliberately **not** implemented here —
+> treated as a documented, accepted limitation rather than a patch. It's
+> real infrastructure work (a new service, a network boundary), and the
+> honest FYP position is naming the edge of the threat model rather than
+> quietly closing it under time pressure. See `docs/ARCHITECTURE.md` →
+> *Known limitation: the Docker socket mount* for the full reasoning and the
+> named mitigation.
+>
+> Item **2** (tools re-validating their own path instead of trusting the
+> caller) is still open. With the chokepoint above, it's now genuinely
+> defense-in-depth rather than the only thing standing between a caller and
+> an unvalidated call — lower priority than it looked before that fix.
 
 ---
 

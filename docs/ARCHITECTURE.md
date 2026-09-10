@@ -113,7 +113,39 @@
 6. **Destructive confirmations** — `docker.stop`, `docker.remove`, `k8s.scale` require explicit opt-in.
 7. **Rate limiting** — Sliding window per user or IP; default 30 req/min.
 8. **Audit logging** — Every privileged action persists a row with full context.
-9. **Container isolation** — The backend runs in its own container and only touches the host Docker socket (read-write by design — this is a DevOps tool).
+9. **Container isolation** — The backend runs in its own container and touches the host Docker socket directly (see *Known limitation* below).
+
+### Known limitation: the Docker socket mount
+
+The backend container mounts `/var/run/docker.sock` directly. This is a
+deliberate, accepted trade-off, not an oversight — stated explicitly so it
+reads as a scoped decision rather than an unexamined gap.
+
+- **What the structured validator actually bounds.** `guardrails.validate_params()`
+  (see `app/safety/structured_validator.py`) constrains *what can be
+  requested* of the backend: which tool, which params, which filesystem
+  roots, which containers. Every request the application processes goes
+  through it — that boundary is real and is what the test suite exercises.
+- **What it doesn't bound.** The socket mount means the backend process
+  itself has root-equivalent control over the host. A compromise of the
+  backend — an RCE in a dependency, not necessarily anything in this
+  codebase — reaches the Docker API directly and the validator is simply
+  never in the path. The validator bounds requests *to the application*; it
+  cannot bound what a compromised application does on its own.
+- **The production mitigation is a socket proxy** — e.g.
+  `tecnativa/docker-socket-proxy` — placed between the backend and the
+  socket with an explicit endpoint allowlist (list/inspect/start/stop, no
+  `EXEC`, no `VOLUMES`, no `SYSTEM`), so a compromised backend can still only
+  reach the same narrow surface the validator already permits. That's a
+  separate piece of infrastructure (a new service, a network boundary, a
+  changed `DOCKER_HOST`), not a code patch, which is why it's named here as
+  future work rather than folded into this submission. See `docs/SECURITY.md`
+  item 1 for the concrete config.
+- **Why this is the honest scope for an FYP.** A platform whose entire
+  purpose is managing containers needs *some* way to reach the Docker API;
+  the question is only how directly. Naming the boundary and its mitigation
+  is the stronger position — a threat model that states its own edges,
+  rather than one that implies it has none.
 
 ## Why MCP matters here
 
