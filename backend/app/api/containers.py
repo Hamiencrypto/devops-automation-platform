@@ -19,7 +19,7 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.mcp.registry import tool_registry
 from app.models import Result, Task, TaskStatus, User
-from app.safety import audit_log
+from app.safety import audit_log, guardrails
 from app.tools.base import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -110,6 +110,10 @@ def stop_container_by_id(
         raise HTTPException(status_code=400, detail="Invalid container identifier")
     tool = _docker()
     params = {"action": "stop", "container": container_id}
+    check = guardrails.validate_params("docker_manager", params)
+    if not check:
+        raise HTTPException(status_code=403, detail=check.reason)
+    params = check.params
     res = tool.execute(params)
     task = _persist(
         db,
@@ -139,6 +143,10 @@ def remove_container_by_id(
         raise HTTPException(status_code=400, detail="Invalid container identifier")
     tool = _docker()
     params = {"action": "remove", "container": container_id}
+    check = guardrails.validate_params("docker_manager", params)
+    if not check:
+        raise HTTPException(status_code=403, detail=check.reason)
+    params = check.params
     res = tool.execute(params)
     task = _persist(
         db,

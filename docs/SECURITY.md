@@ -4,6 +4,23 @@ The validator closes the parameter surface. These three close the holes
 underneath it. Order matters: a perfect validator in front of a container that
 already has host root is theatre.
 
+> **Status (2026-09-11):** Item 4's exact code below is stale — the live
+> wiring in `guardrails.py`/`executor.py` took a simpler shape than what's
+> sketched here, already tested and working. In the course of applying that,
+> a live instance of exactly the gap item 4 warns about was found and fixed:
+> `backend/app/api/containers.py`'s stop/remove-by-ID endpoints built tool
+> params from the URL and called `tool.execute()` directly, never through
+> `guardrails.validate_params()` — so the protected-container policy in
+> item 1 could be bypassed entirely through that route regardless of whether
+> the socket is proxied. Fixed; see `tests/test_containers_api.py`.
+> Items **1** (docker-socket proxy) and **3** (production-auth guard) are
+> still open — the socket is still mounted directly
+> (`docker-compose.yml`, `/var/run/docker.sock`) and `config.py` has no
+> production validator. Item **2** (tools re-validating their own path
+> instead of trusting the caller) is also still open, and is a reasonable
+> defense-in-depth follow-up now that containers.py shows a second caller can
+> exist.
+
 ---
 
 ## 1. Docker socket → proxy
