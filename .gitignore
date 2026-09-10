@@ -4,3 +4,5 @@ node_modules/
 .next/
 *.pyc
 .env
+frontend/tsconfig.tsbuildinfo
+.pytest_cache/

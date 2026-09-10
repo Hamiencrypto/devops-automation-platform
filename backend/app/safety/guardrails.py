@@ -55,7 +55,6 @@ class Guardrails:
         command: str,
         intent: IntentResult,
         confirm_destructive: bool = False,
-        tool_name: str | None = None,
     ) -> SafetyCheck:
         warnings: list[str] = []
 
@@ -81,31 +80,6 @@ class Guardrails:
                 f"Low-confidence intent match ({intent.confidence:.2f}). "
                 "Double-check the action."
             )
-
-        # 3b. Structured parameter validation on the resolved tool call.
-        #
-        # This is the authoritative allowlist. Steps 1-3 are bounded sanity
-        # checks on the sentence; this step checks the actual tool call that
-        # will run: the tool must be registered, its arguments must satisfy
-        # the published JSON Schema, and they must pass the tool's operational
-        # policy (which filesystem roots, which ports, which namespaces).
-        #
-        # It runs for every intent source. A regex pattern that emits
-        # {"path": "/etc/passwd"} is exactly as dangerous as a model that
-        # does, so neither gets its own code path.
-        if tool_name:
-            result = self._validator.validate_tool_call(tool_name, intent.entities or {})
-            if not result:
-                logger.info("blocked %s: %s", tool_name, result.reason)
-                return SafetyCheck(
-                    allowed=False,
-                    reason=result.reason,
-                    warnings=warnings,
-                )
-            # Use the normalised parameters downstream. The validator resolves
-            # paths, and the value that was checked must be the value used —
-            # otherwise a symlink swapped between check and use would slip past.
-            intent.entities = result.params
 
         # 4. Destructive operations require explicit user confirmation
         if (

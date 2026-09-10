@@ -15,6 +15,7 @@ from functools import lru_cache
 
 from sqlalchemy.orm import Session
 
+from app.database import SessionLocal
 from app.intent.engine import intent_engine
 from app.mcp.registry import tool_registry
 from app.mcp.router import MCPRouterError, mcp_router
@@ -23,6 +24,7 @@ from app.safety import SafetyError, audit_log, guardrails, rate_limiter
 from app.config import settings
 from app.intent.llm_engine import HybridIntentEngine, TTLCache
 from app.intent.providers import build_provider
+from app.services.llm_budget import DailyTokenBudget
 from app.schemas import ExecuteResponse, IntentResult
 
 logger = logging.getLogger(__name__)
@@ -45,6 +47,7 @@ def get_intent_engine() -> HybridIntentEngine:
         max_tokens=settings.LLM_MAX_TOKENS,
         max_command_chars=settings.LLM_MAX_COMMAND_CHARS,
         cache=TTLCache(settings.LLM_CACHE_TTL, settings.LLM_CACHE_MAX_ENTRIES),
+        budget=DailyTokenBudget(SessionLocal, settings.LLM_DAILY_TOKEN_BUDGET),
     )
 
 
@@ -87,6 +90,9 @@ def execute_command(
     result_payload: dict[str, Any] | None = None
     intent = None
     tool_call = None
+    intent_source: str | None = None
+    llm_tokens_used: int | None = None
+    llm_latency_ms: int | None = None
 
     try:
         # --------------------------------------------------------------
@@ -95,18 +101,24 @@ def execute_command(
         # Regex first, model only on low confidence. The hybrid engine
         # returns its own Intent type; convert to IntentResult so everything
         # downstream (guardrails, router, tools) is unchanged.
-        _hybrid = get_intent_engine().detect(command)
+        _hybrid = get_intent_engine().detect(command, user_id=rl_key)
         intent = IntentResult(
             intent=_hybrid.name,
             confidence=_hybrid.confidence,
             entities=_hybrid.entities,
             matched_pattern=_hybrid.reason or None,
+            source=_hybrid.source,
+            tokens_used=_hybrid.tokens_used,
+            latency_ms=_hybrid.latency_ms,
         )
         logger.info(
             "intent %s via %s (confidence=%.2f, %dms, %d tokens)",
             _hybrid.name, _hybrid.source, _hybrid.confidence,
             _hybrid.latency_ms, _hybrid.tokens_used,
         )
+        intent_source = _hybrid.source
+        llm_tokens_used = _hybrid.tokens_used
+        llm_latency_ms = _hybrid.latency_ms
         task.detected_intent = intent.intent
         task.intent_confidence = intent.confidence
         task.entities = intent.entities
@@ -141,6 +153,10 @@ def execute_command(
                     "require_confirmation": check.require_confirmation,
                 },
                 ip_address=ip_address,
+                intent_source=intent_source,
+                llm_tokens_used=llm_tokens_used,
+                llm_latency_ms=llm_latency_ms,
+                validation_result=f"denied: {check.reason}",
             )
             return ExecuteResponse(
                 task_id=task.id,
@@ -193,6 +209,10 @@ def execute_command(
                     "reason": vcheck.reason,
                 },
                 ip_address=ip_address,
+                intent_source=intent_source,
+                llm_tokens_used=llm_tokens_used,
+                llm_latency_ms=llm_latency_ms,
+                validation_result=f"denied: {vcheck.reason}",
             )
             return ExecuteResponse(
                 task_id=task.id,
@@ -251,6 +271,10 @@ def execute_command(
                 "success": exec_result.success,
             },
             ip_address=ip_address,
+            intent_source=intent_source,
+            llm_tokens_used=llm_tokens_used,
+            llm_latency_ms=llm_latency_ms,
+            validation_result="valid",
         )
 
         result_payload = exec_result.to_dict()
@@ -271,6 +295,19 @@ def execute_command(
         task.duration_ms = int((time.time() - started) * 1000)
         task.completed_at = datetime.utcnow()
         db.commit()
+        audit_log(
+            db,
+            event="command.routing_failed",
+            severity="error",
+            task_id=task.id,
+            user_id=user.id if user else None,
+            details={"command": command, "error": str(exc)},
+            ip_address=ip_address,
+            intent_source=intent_source,
+            llm_tokens_used=llm_tokens_used,
+            llm_latency_ms=llm_latency_ms,
+            validation_result=f"routing_error: {exc}",
+        )
         return ExecuteResponse(
             task_id=task.id,
             status=TaskStatus.FAILED,
@@ -294,6 +331,10 @@ def execute_command(
             user_id=user.id if user else None,
             details={"command": command, "error": str(exc)},
             ip_address=ip_address,
+            intent_source=intent_source,
+            llm_tokens_used=llm_tokens_used,
+            llm_latency_ms=llm_latency_ms,
+            validation_result=f"error: {exc}",
         )
         return ExecuteResponse(
             task_id=task.id,

@@ -64,6 +64,9 @@ export interface IntentResult {
   confidence: number;
   entities: Record<string, unknown>;
   matched_pattern?: string | null;
+  source: "regex" | "llm" | "cache" | "none";
+  tokens_used: number;
+  latency_ms: number;
 }
 
 export interface ToolCall {

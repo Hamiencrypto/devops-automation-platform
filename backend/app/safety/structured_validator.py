@@ -204,6 +204,19 @@ def policy_logs(params: dict, policy: SafetyPolicy) -> ValidationResult:
     return policy_file(params, policy)
 
 
+def _is_protected_container(name: str, protected: frozenset[str]) -> bool:
+    """True if `name` is (or embeds, e.g. via a compose project prefix like
+    `devops-mcp-postgres`) one of the platform's own containers. An exact-match
+    check alone is bypassable by anyone who can vary the name string, so a
+    protected name must match as a delimiter-bounded segment, not a raw
+    substring (`mcp-postgres-backup` is a different container; `x-mcp-postgres`
+    is not)."""
+    for p in protected:
+        if name == p or re.search(rf"(?:^|[-_]){re.escape(p)}(?:[-_]|$)", name):
+            return True
+    return False
+
+
 def policy_docker(params: dict, policy: SafetyPolicy) -> ValidationResult:
     action = params.get("action")
     out = dict(params)
@@ -224,7 +237,7 @@ def policy_docker(params: dict, policy: SafetyPolicy) -> ValidationResult:
     if name is not None:
         if not isinstance(name, str) or not _CONTAINER_NAME.match(name):
             return deny("container name contains characters that are not allowed")
-        if name in policy.protected_containers:
+        if _is_protected_container(name, policy.protected_containers):
             return deny(
                 f"{name} is part of the platform itself and cannot be modified from here"
             )

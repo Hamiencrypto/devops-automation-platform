@@ -1,11 +1,12 @@
 """SQLAlchemy ORM models for users, tasks, results, and audit logs."""
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum as PyEnum
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -146,8 +147,40 @@ class AuditLog(Base):
     details: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
+    # Hybrid intent layer observability — how this request's intent was
+    # decided and what the structured-validation boundary did with it.
+    intent_source: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
+    llm_tokens_used: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    llm_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    validation_result: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False, index=True
     )
 
     task: Mapped["Task | None"] = relationship("Task", back_populates="audit_logs")
+
+
+# ---------------------------------------------------------------------
+# LLMUsage (per-user daily token consumption, backs the LLM budget cap)
+# ---------------------------------------------------------------------
+class LLMUsage(Base):
+    """
+    One row per (user_id, model, request). Summed by usage_date in
+    DailyTokenBudget to enforce settings.LLM_DAILY_TOKEN_BUDGET. `user_id` is
+    a free-form string key rather than a FK to `users.id` because the same
+    accounting applies when auth is disabled (e.g. "ip:203.0.113.4") — not
+    every caller is a registered user.
+    """
+
+    __tablename__ = "llm_usage"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    usage_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    model: Mapped[str] = mapped_column(String(64), nullable=False)
+    total_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )

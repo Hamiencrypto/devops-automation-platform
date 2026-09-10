@@ -122,11 +122,15 @@ class TTLCache:
         self.misses = 0
 
     @staticmethod
-    def key(command: str) -> str:
-        return hashlib.sha256(" ".join(command.lower().split()).encode()).hexdigest()
+    def key(command: str, schema_version: str = "") -> str:
+        normalized = " ".join(command.lower().split())
+        return hashlib.sha256(f"{normalized}:{schema_version}".encode()).hexdigest()
 
-    def get(self, command: str) -> Intent | None:
-        k = self.key(command)
+    def get(self, command: str, schema_version: str = "") -> Intent | None:
+        # `schema_version` is folded into the key (not checked separately) so
+        # that a tool schema change invalidates stale entries automatically —
+        # old keys simply stop being looked up, no explicit eviction needed.
+        k = self.key(command, schema_version)
         with self._lock:
             entry = self._data.get(k)
             if entry is None:
@@ -140,14 +144,14 @@ class TTLCache:
             self.hits += 1
             return Intent(**{**intent.__dict__, "source": "cache"})
 
-    def set(self, command: str, intent: Intent) -> None:
+    def set(self, command: str, intent: Intent, schema_version: str = "") -> None:
         with self._lock:
             if len(self._data) >= self.max_entries:
                 # Evict the oldest quarter. Crude, but bounded and predictable.
                 oldest = sorted(self._data.items(), key=lambda kv: kv[1][0])
                 for k, _ in oldest[: self.max_entries // 4]:
                     del self._data[k]
-            self._data[self.key(command)] = (time.time(), intent)
+            self._data[self.key(command, schema_version)] = (time.time(), intent)
 
     @property
     def hit_rate(self) -> float:
@@ -332,7 +336,8 @@ class HybridIntentEngine:
                 latency_ms=self._ms(started),
             )
 
-        cached = self.cache.get(command)
+        schema_version = self._schema_version()
+        cached = self.cache.get(command, schema_version)
         if cached is not None:
             cached.latency_ms = self._ms(started)
             log.debug("intent cache hit for %r -> %s", command[:60], cached.name)
@@ -360,7 +365,7 @@ class HybridIntentEngine:
 
         intent.latency_ms = self._ms(started)
         if intent.resolved:
-            self.cache.set(command, intent)
+            self.cache.set(command, intent, schema_version)
         return intent
 
     # -- internals ---------------------------------------------------------
@@ -451,6 +456,18 @@ class HybridIntentEngine:
         """Registries vary: this one exposes list_tools(), test doubles use all()."""
         lister = getattr(self.registry, "list_tools", None) or self.registry.all
         return lister()
+
+    def _schema_version(self) -> str:
+        """
+        Fingerprint of the currently registered tool schemas, folded into the
+        cache key. If a schema changes shape (new required param, tightened
+        enum, removed field), previously cached tool calls stop matching and
+        the next request re-resolves through the LLM and re-validates —
+        instead of serving a proposal that satisfied a schema that no longer
+        exists.
+        """
+        payload = repr(sorted(self.tool_schemas(), key=lambda t: t["name"]))
+        return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
     @staticmethod
     def _trim_history(history: list[dict[str, Any]], keep: int = 6) -> list[dict[str, Any]]:

@@ -21,6 +21,10 @@ def audit_log(
     user_id: int | None = None,
     details: dict[str, Any] | None = None,
     ip_address: str | None = None,
+    intent_source: str | None = None,
+    llm_tokens_used: int | None = None,
+    llm_latency_ms: int | None = None,
+    validation_result: str | None = None,
     commit: bool = True,
 ) -> AuditLog:
     """Persist an audit entry. Use for every privileged / destructive action."""
@@ -31,6 +35,10 @@ def audit_log(
         user_id=user_id,
         details=details or {},
         ip_address=ip_address,
+        intent_source=intent_source,
+        llm_tokens_used=llm_tokens_used,
+        llm_latency_ms=llm_latency_ms,
+        validation_result=validation_result,
     )
     db.add(entry)
     if commit:

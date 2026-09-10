@@ -2,6 +2,7 @@
 
 import { CheckCircle2, XCircle, AlertTriangle, Zap, Activity } from "lucide-react";
 import type { ExecuteResponse } from "@/lib/api";
+import { IntentConfidence } from "@/components/IntentConfidence";
 
 interface Props {
   response: ExecuteResponse | null;
@@ -65,17 +66,23 @@ export default function ResultsDisplay({ response }: Props) {
       </div>
 
       {response.intent && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <InfoCard label="Detected Intent" value={response.intent.intent} />
-          <InfoCard
-            label="Confidence"
-            value={`${(response.intent.confidence * 100).toFixed(0)}%`}
+        <>
+          <IntentConfidence
+            intent={response.intent.intent}
+            confidence={response.intent.confidence}
+            source={response.intent.source}
+            reason={response.intent.matched_pattern ?? undefined}
+            tokensUsed={response.intent.tokens_used}
+            latencyMs={response.intent.latency_ms}
           />
-          <InfoCard
-            label="Selected Tool"
-            value={response.tool_call?.tool_name || "—"}
-          />
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <InfoCard label="Detected Intent" value={response.intent.intent} />
+            <InfoCard
+              label="Selected Tool"
+              value={response.tool_call?.tool_name || "—"}
+            />
+          </div>
+        </>
       )}
 
       {response.intent &&

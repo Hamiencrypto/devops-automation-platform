@@ -278,6 +278,33 @@ def test_second_identical_command_hits_cache(registry):
     assert provider.calls == 1
 
 
+def test_cache_invalidates_when_tool_schema_changes(registry):
+    """
+    A cached tool call was validated against the schema that existed when it
+    was resolved. If the tool's schema later changes shape, the stale entry
+    must not be served — it may no longer satisfy the new schema (a newly
+    required param, a narrowed enum). The cache key folds in a schema
+    fingerprint precisely so a schema change is a cache miss, not a stale hit.
+    """
+    provider = FakeProvider(tool_response())
+    engine = build_engine(registry, FakeRegex(("unknown", 0.1, {})), provider)
+
+    first = engine.detect("show me every running container please")
+    assert first.source == "llm"
+    assert provider.calls == 1
+
+    # Widen the schema in place — same registry object, new shape.
+    DOCKER_TOOL.input_schema["properties"]["force"] = {"type": "boolean"}
+
+    second = engine.detect("show me every running container please")
+
+    assert second.source == "llm", "a schema change must force re-resolution, not a cache hit"
+    assert provider.calls == 2
+
+    # Restore so this test doesn't leak state into others via the shared fixture.
+    del DOCKER_TOOL.input_schema["properties"]["force"]
+
+
 def test_cache_key_normalises_whitespace_and_case(registry):
     provider = FakeProvider(tool_response())
     engine = build_engine(registry, FakeRegex(("unknown", 0.1, {})), provider)

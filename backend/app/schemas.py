@@ -61,6 +61,11 @@ class IntentResult(BaseModel):
     confidence: float
     entities: dict[str, Any] = Field(default_factory=dict)
     matched_pattern: str | None = None
+    # How this intent was decided — surfaced in the UI so an operator can see
+    # when a result came from the model rather than the pattern engine.
+    source: str = "regex"  # regex | llm | cache | none
+    tokens_used: int = 0
+    latency_ms: int = 0
 
 
 class MCPToolCall(BaseModel):
