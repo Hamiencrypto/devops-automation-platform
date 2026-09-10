@@ -29,14 +29,48 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _resolve_and_validate(params: dict[str, Any]):
-    """Resolve + validate against docker_manager's schema and policy. Raises
+def _resolve_and_validate(
+    params: dict[str, Any],
+    *,
+    db: Session,
+    user: User | None,
+    ip_address: str | None,
+):
+    """
+    Resolve + validate against docker_manager's schema and policy. Raises
     the same way for an unregistered tool or a denied call, so a caller
-    can't reach `tool.execute()` without going through this."""
+    can't reach `tool.execute()` without going through this.
+
+    A denial here reaches Docker's own boundary — it's the same policy
+    decision `executor.py` audits for the natural-language path — so it gets
+    the same audit row, not just an HTTP error the caller sees and the
+    system doesn't remember.
+    """
     resolution = resolve_and_validate("docker_manager", params)
     if resolution.tool is None:
+        audit_log(
+            db,
+            event="container.direct_action.blocked",
+            severity="warn",
+            user_id=user.id if user else None,
+            details={"params": params, "reason": "docker tool is not loaded"},
+            ip_address=ip_address,
+            validation_result="denied: docker tool is not loaded",
+        )
         raise HTTPException(status_code=503, detail="Docker tool is not loaded")
     if not resolution.ok:
+        audit_log(
+            db,
+            event="container.direct_action.blocked",
+            severity="warn",
+            user_id=user.id if user else None,
+            details={"params": params, "reason": resolution.reason},
+            ip_address=ip_address,
+            validation_result=f"denied: {resolution.reason}",
+            rule_id=resolution.rule_id,
+            ruleset_version=resolution.ruleset_version,
+            ruleset_hash=resolution.ruleset_hash,
+        )
         raise HTTPException(status_code=403, detail=resolution.reason)
     return resolution
 
@@ -50,6 +84,8 @@ def _persist(
     result: ToolResult,
     user: User,
     ip_address: str | None,
+    ruleset_version: str | None = None,
+    ruleset_hash: str | None = None,
 ) -> Task:
     task = Task(
         command=command,
@@ -84,6 +120,9 @@ def _persist(
         user_id=user.id if user else None,
         details={"intent": intent, "params": params, "success": result.success},
         ip_address=ip_address,
+        validation_result="valid",
+        ruleset_version=ruleset_version,
+        ruleset_hash=ruleset_hash,
     )
     db.commit()
     db.refresh(task)
@@ -92,9 +131,16 @@ def _persist(
 
 @router.get("/", summary="List all containers")
 def list_containers(
+    request: Request,
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    resolution = _resolve_and_validate({"action": "list"})
+    resolution = _resolve_and_validate(
+        {"action": "list"},
+        db=db,
+        user=user,
+        ip_address=request.client.host if request.client else None,
+    )
     tool = resolution.tool
     res = tool.execute(resolution.params)
     if not res.success:
@@ -116,7 +162,12 @@ def stop_container_by_id(
 ):
     if not container_id or len(container_id) < 3:
         raise HTTPException(status_code=400, detail="Invalid container identifier")
-    resolution = _resolve_and_validate({"action": "stop", "container": container_id})
+    resolution = _resolve_and_validate(
+        {"action": "stop", "container": container_id},
+        db=db,
+        user=user,
+        ip_address=request.client.host if request.client else None,
+    )
     tool = resolution.tool
     params = resolution.params
     res = tool.execute(params)
@@ -128,6 +179,8 @@ def stop_container_by_id(
         result=res,
         user=user,
         ip_address=request.client.host if request.client else None,
+        ruleset_version=resolution.ruleset_version,
+        ruleset_hash=resolution.ruleset_hash,
     )
     return {
         "task_id": task.id,
@@ -146,7 +199,12 @@ def remove_container_by_id(
 ):
     if not container_id or len(container_id) < 3:
         raise HTTPException(status_code=400, detail="Invalid container identifier")
-    resolution = _resolve_and_validate({"action": "remove", "container": container_id})
+    resolution = _resolve_and_validate(
+        {"action": "remove", "container": container_id},
+        db=db,
+        user=user,
+        ip_address=request.client.host if request.client else None,
+    )
     tool = resolution.tool
     params = resolution.params
     res = tool.execute(params)
@@ -158,6 +216,8 @@ def remove_container_by_id(
         result=res,
         user=user,
         ip_address=request.client.host if request.client else None,
+        ruleset_version=resolution.ruleset_version,
+        ruleset_hash=resolution.ruleset_hash,
     )
     return {
         "task_id": task.id,

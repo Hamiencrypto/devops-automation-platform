@@ -49,6 +49,20 @@ class ToolResolution:
         value that was checked must be the value used)."""
         return self.check.params or {}
 
+    # -- policy attribution, for the audit row -------------------------
+
+    @property
+    def rule_id(self) -> str | None:
+        return self.check.rule_id
+
+    @property
+    def ruleset_version(self) -> str | None:
+        return self.check.ruleset_version
+
+    @property
+    def ruleset_hash(self) -> str | None:
+        return self.check.ruleset_hash
+
 
 def resolve_and_validate(tool_name: str, params: dict[str, Any]) -> ToolResolution:
     """Look up the tool and validate params against its schema + policy.

@@ -43,3 +43,6 @@ structlog==24.1.0
 rich==13.7.0
 anthropic>=0.40.0
 jsonschema>=4.21.0
+
+# Declarative safety policy ruleset (app/safety/policy/rules.yaml)
+PyYAML==6.0.1

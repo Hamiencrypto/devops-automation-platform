@@ -20,15 +20,28 @@ Critically, this validator is source-agnostic. It does not know or care
 whether a regex pattern or a language model produced the parameters. If it
 only guarded the LLM path, the regex path would be a bypass — and an examiner
 who understands the threat model will look for exactly that.
+
+Layer 2 used to be hand-written Python per tool (`policy_docker`,
+`policy_kubernetes`, ...). It's now a declarative ruleset
+(`app/safety/policy/rules.yaml`) walked by a fixed interpreter
+(`app/safety/policy/engine.py`) — see that file's header comment for exactly
+what "declarative" does and doesn't mean here before assuming every number
+in this module moved into the YAML; it didn't, deliberately.
+
+The ruleset is loaded once, at import time, below. A malformed file, an
+unknown predicate name, or a rule ordered before the resolving rule it
+depends on all raise here — which means the application fails to start
+rather than serving requests against a broken or absent policy. There is no
+permissive fallback, and no fallback to the old hardcoded Python.
 """
 
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Callable
+
+from app.safety.policy import EvaluationOutcome, PolicyEngine, load_ruleset
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +53,13 @@ class ValidationResult:
     # Params after normalisation (e.g. resolved paths). Callers should execute
     # with these, not with the originals, so the checked value is the used value.
     params: dict[str, Any] | None = None
+    # Attribution — populated only for a Layer-2 (ruleset) decision, never for
+    # a Layer-1 schema failure or a "tool not registered" denial, since those
+    # aren't rule evaluations. `rule_id` is set only on a denial: no single
+    # rule "approves" an allow, so it stays None there.
+    rule_id: str | None = None
+    ruleset_version: str | None = None
+    ruleset_hash: str | None = None
 
     def __bool__(self) -> bool:
         return self.valid
@@ -53,6 +73,23 @@ def deny(reason: str) -> ValidationResult:
     return ValidationResult(False, reason=reason)
 
 
+def _from_outcome(outcome: EvaluationOutcome) -> ValidationResult:
+    if outcome.ok:
+        return ValidationResult(
+            True,
+            params=dict(outcome.context),
+            ruleset_version=outcome.ruleset_version,
+            ruleset_hash=outcome.ruleset_hash,
+        )
+    return ValidationResult(
+        False,
+        reason=outcome.reason,
+        rule_id=outcome.rule_id,
+        ruleset_version=outcome.ruleset_version,
+        ruleset_hash=outcome.ruleset_hash,
+    )
+
+
 # --------------------------------------------------------------------------
 # Policy configuration
 # --------------------------------------------------------------------------
@@ -63,6 +100,11 @@ class SafetyPolicy:
     """
     Operational limits. Sourced from config so they differ per environment —
     a staging deployment can be looser than production without a code change.
+
+    Unchanged by the move to a declarative ruleset: this remains the runtime
+    *parameter* object. Rules reference these fields by name
+    (`{from_policy: field_name}` in rules.yaml); the ruleset governs which
+    checks run, in what order, and with what message — not these values.
     """
 
     allowed_file_roots: tuple[str, ...] = ("/data",)
@@ -108,87 +150,40 @@ class SafetyPolicy:
 
 
 # --------------------------------------------------------------------------
-# Shared checks
+# Ruleset — loaded once, at import time. A bad ruleset must fail the boot.
 # --------------------------------------------------------------------------
 
-_CONTAINER_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
-_K8S_NAME = re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
-_IMAGE_REF = re.compile(r"^[a-z0-9]+([._/-][a-z0-9]+)*(:[\w.-]+)?(@sha256:[a-f0-9]{64})?$")
+RULESET = load_ruleset()
+ENGINE = PolicyEngine(RULESET)
+
+log.info(
+    "loaded safety policy ruleset version=%s hash=%s groups=%s",
+    RULESET.version, RULESET.content_hash[:12], sorted(RULESET.groups),
+)
+
+
+# --------------------------------------------------------------------------
+# Shared checks — thin wrappers over the engine, kept as standalone
+# functions because tests (and, for check_path, other tool code) call them
+# directly with just a raw value and a SafetyPolicy.
+# --------------------------------------------------------------------------
 
 
 def check_path(raw: str, policy: SafetyPolicy) -> ValidationResult:
-    """
-    Path containment.
-
-    Resolve first, compare second. Resolving collapses `..`, follows symlinks,
-    and normalises the string, so `/app/safe_data/../../etc/shadow` and a
-    symlink pointing at /etc both fail the containment test rather than
-    sneaking past a prefix match on the unresolved string.
-    """
-    if not raw or not isinstance(raw, str):
-        return deny("path must be a non-empty string")
-
-    if "\x00" in raw:
-        return deny("path contains a null byte")
-
-    try:
-        resolved = Path(raw).resolve(strict=False)
-    except (OSError, RuntimeError) as exc:  # RuntimeError = symlink loop
-        return deny(f"path could not be resolved: {exc}")
-
-    roots = [Path(r).resolve(strict=False) for r in policy.allowed_file_roots]
-    if not any(_is_within(resolved, root) for root in roots):
-        # Report the configured roots, not the resolved target. Echoing where
-        # the traversal landed confirms filesystem layout to an attacker.
-        return deny(
-            f"path is outside the permitted directories "
-            f"({', '.join(policy.allowed_file_roots)})"
-        )
-
-    name = resolved.name.lower()
-    if name in policy.denied_filenames or resolved.stem.lower() in policy.denied_filenames:
-        return deny("this file is on the protected list")
-    if resolved.suffix.lower() in policy.denied_suffixes:
-        return deny(f"files of type {resolved.suffix} cannot be read")
-
-    if resolved.exists():
-        if resolved.is_dir():
-            return deny("path is a directory, not a file")
-        try:
-            if resolved.stat().st_size > policy.max_file_bytes:
-                return deny(
-                    f"file exceeds the {policy.max_file_bytes // (1024 * 1024)} MB limit"
-                )
-        except OSError as exc:
-            return deny(f"file could not be inspected: {exc}")
-
-    return ok({"path": str(resolved)})
-
-
-def _is_within(child: Path, parent: Path) -> bool:
-    # Path.is_relative_to needs 3.9+; this form also works and is explicit.
-    try:
-        child.relative_to(parent)
-        return True
-    except ValueError:
-        return False
+    """Path containment: resolve first, compare second — see rules.yaml's
+    `file_containment` group and `path_within_root` in policy/predicates.py
+    for what that actually does and why order matters there."""
+    outcome = ENGINE.evaluate_group("file_containment", {"path": raw}, policy)
+    return _from_outcome(outcome)
 
 
 def check_port(value: Any, policy: SafetyPolicy) -> ValidationResult:
-    if isinstance(value, bool) or not isinstance(value, int):
-        return deny("port must be an integer")
-    if not policy.min_port <= value <= policy.max_port:
-        return deny(
-            f"port must be between {policy.min_port} and {policy.max_port}; "
-            "privileged ports are not available to this platform"
-        )
-    if value in policy.reserved_ports:
-        return deny(f"port {value} is used by the platform itself")
-    return ok({"port": value})
+    outcome = ENGINE.evaluate_group("port_check", {"port": value}, policy)
+    return _from_outcome(outcome)
 
 
 # --------------------------------------------------------------------------
-# Per-tool policies
+# Per-tool policies — thin wrappers, same signature and behaviour as before
 # --------------------------------------------------------------------------
 
 
@@ -196,7 +191,12 @@ def policy_file(params: dict, policy: SafetyPolicy) -> ValidationResult:
     result = check_path(params.get("path", ""), policy)
     if not result:
         return result
-    return ok({**params, "path": result.params["path"]})
+    return ValidationResult(
+        True,
+        params={**params, "path": result.params["path"]},
+        ruleset_version=result.ruleset_version,
+        ruleset_hash=result.ruleset_hash,
+    )
 
 
 def policy_logs(params: dict, policy: SafetyPolicy) -> ValidationResult:
@@ -204,93 +204,14 @@ def policy_logs(params: dict, policy: SafetyPolicy) -> ValidationResult:
     return policy_file(params, policy)
 
 
-def _is_protected_container(name: str, protected: frozenset[str]) -> bool:
-    """True if `name` is (or embeds, e.g. via a compose project prefix like
-    `devops-mcp-postgres`) one of the platform's own containers. An exact-match
-    check alone is bypassable by anyone who can vary the name string, so a
-    protected name must match as a delimiter-bounded segment, not a raw
-    substring (`mcp-postgres-backup` is a different container; `x-mcp-postgres`
-    is not)."""
-    for p in protected:
-        if name == p or re.search(rf"(?:^|[-_]){re.escape(p)}(?:[-_]|$)", name):
-            return True
-    return False
-
-
 def policy_docker(params: dict, policy: SafetyPolicy) -> ValidationResult:
-    action = params.get("action")
-    out = dict(params)
-
-    # Flags that would hand the container the host. None of these should be
-    # reachable through natural language, and the schema should not expose
-    # them — this is the backstop if a schema is later widened carelessly.
-    for flag in ("privileged", "cap_add", "devices", "pid_mode", "ipc_mode"):
-        if params.get(flag):
-            return deny(f"{flag} is not permitted on managed containers")
-    if params.get("network_mode") == "host":
-        return deny("host networking is not permitted")
-    for bind in params.get("volumes", []) or []:
-        if isinstance(bind, str) and "docker.sock" in bind:
-            return deny("mounting the Docker socket is not permitted")
-
-    name = params.get("name") or params.get("container")
-    if name is not None:
-        if not isinstance(name, str) or not _CONTAINER_NAME.match(name):
-            return deny("container name contains characters that are not allowed")
-        if _is_protected_container(name, policy.protected_containers):
-            return deny(
-                f"{name} is part of the platform itself and cannot be modified from here"
-            )
-
-    if "port" in params and params["port"] is not None:
-        result = check_port(params["port"], policy)
-        if not result:
-            return result
-        out["port"] = result.params["port"]
-
-    image = params.get("image")
-    if action in ("deploy", "run", "start") and image:
-        if not isinstance(image, str) or not _IMAGE_REF.match(image):
-            return deny("image reference is not a valid form")
-        if image.split("/")[0] in policy.denied_image_names:
-            return deny("this image is not permitted")
-        if "/" in image and "." in image.split("/")[0]:
-            registry = image.split("/")[0]
-            if registry not in policy.allowed_image_registries:
-                return deny(
-                    f"images may only come from {', '.join(policy.allowed_image_registries)}"
-                )
-
-    return ok(out)
+    outcome = ENGINE.evaluate_group("docker_policy", params, policy)
+    return _from_outcome(outcome)
 
 
 def policy_kubernetes(params: dict, policy: SafetyPolicy) -> ValidationResult:
-    out = dict(params)
-
-    ns = params.get("namespace", "default")
-    if not isinstance(ns, str) or not _K8S_NAME.match(ns):
-        return deny("namespace is not a valid Kubernetes name")
-    if ns in policy.protected_namespaces:
-        return deny(f"the {ns} namespace is managed by the cluster and is read-only here")
-
-    for key in ("deployment", "name", "resource"):
-        value = params.get(key)
-        if value is not None and (not isinstance(value, str) or not _K8S_NAME.match(value)):
-            return deny(f"{key} is not a valid Kubernetes name")
-
-    replicas = params.get("replicas")
-    if replicas is not None:
-        if isinstance(replicas, bool) or not isinstance(replicas, int):
-            return deny("replicas must be an integer")
-        if replicas < 0:
-            return deny("replicas cannot be negative")
-        if replicas > policy.max_replicas:
-            return deny(
-                f"scaling above {policy.max_replicas} replicas needs a cluster "
-                "administrator, not this platform"
-            )
-
-    return ok(out)
+    outcome = ENGINE.evaluate_group("kubernetes_policy", params, policy)
+    return _from_outcome(outcome)
 
 
 def policy_system(params: dict, policy: SafetyPolicy) -> ValidationResult:
@@ -372,7 +293,7 @@ class StructuredOutputValidator:
             return deny(f"safety check for {tool.name} could not complete: {exc}")
 
         if not result:
-            log.info("policy denied %s: %s", tool.name, result.reason)
+            log.info("policy denied %s: %s (rule=%s)", tool.name, result.reason, result.rule_id)
         return result
 
     def _check_schema(self, tool, params: dict) -> ValidationResult:

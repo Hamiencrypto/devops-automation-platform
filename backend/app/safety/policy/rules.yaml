@@ -1,0 +1,246 @@
+# Layer-2 safety policy — declarative rules.
+#
+# SCOPE, READ THIS BEFORE ADDING A RULE:
+#
+#   What's genuinely data here is rule *identity, order, predicate
+#   selection, and message text* — the things that today require a code
+#   edit and a redeploy to change. Add a rule, reorder two checks, reword a
+#   denial: edit this file, not structured_validator.py.
+#
+#   What is NOT data here: the actual numeric and set VALUES a rule is
+#   parametrised with — allowed file roots, protected containers, port
+#   ranges, replica caps, denied filenames, and so on. Those still live in
+#   `SafetyPolicy` (app/safety/structured_validator.py) and, for the
+#   handful backed by settings, ultimately in environment variables. A
+#   `{from_policy: field_name}` reference below is resolved against the
+#   SafetyPolicy instance in force at evaluation time.
+#
+#   Do not describe this file as "policy is now data" without that
+#   qualifier — a customer still cannot add a protected namespace without
+#   touching Python and redeploying. That's an accurate limitation to state,
+#   not a gap to paper over. Moving SafetyPolicy's values into this file too
+#   is a reasonable next step, but it isn't this one — see the per-team /
+#   per-environment scope boundary this was deliberately left out of.
+#
+#   `policy_set_id` does not exist yet. There is one global ruleset. The
+#   loader and engine are shaped so a future ruleset selector can be added
+#   without changing this file's structure, but nothing here implements
+#   selection.
+#
+# FIELD RESOLUTION MODES (for a rule with more than one `field`):
+#   alias — one logical value under several possible keys; the first one
+#           present wins (e.g. docker's `name` vs `container`).
+#   all   — every listed field that's present is checked independently,
+#           and the message names whichever one failed (e.g. k8s's
+#           `deployment` / `name` / `resource`).
+#
+# ORDERING WARNING: `path_within_root` *rebinds* the `path` field to its
+# resolved form for every rule after it in the same group. Any rule that
+# needs the resolved value (not-a-directory, size, protected name/suffix)
+# must come after it. The loader enforces this at boot — see
+# loader.py::_check_resolution_order — so getting it wrong fails the
+# application on startup rather than silently checking the wrong thing.
+
+version: "1.0.0"
+
+groups:
+  # ------------------------------------------------------------------
+  # Shared by file_processor / logs_analyzer (policy_file, policy_logs),
+  # and callable standalone as check_path().
+  # ------------------------------------------------------------------
+  file_containment:
+    - id: file.path.required
+      predicate: value_type
+      field: path
+      params: {type: string, min_length: 1}
+      message: "path must be a non-empty string"
+
+    - id: file.path.no_null_byte
+      predicate: no_null_byte
+      field: path
+      message: "path contains a null byte"
+
+    - id: file.path.within_root
+      predicate: path_within_root
+      field: path
+      params:
+        roots: {from_policy: allowed_file_roots}
+      # Deliberately does not name the configured roots or the resolved
+      # target — requirement: the message must not leak allowed roots or
+      # resolved paths. See test_denial_does_not_leak_resolved_path.
+      message: "path is outside the permitted directories"
+
+    - id: file.path.not_protected_name
+      predicate: path_stem_or_name_not_in_set
+      field: path
+      params:
+        names: {from_policy: denied_filenames}
+      message: "this file is on the protected list"
+
+    - id: file.path.not_denied_suffix
+      predicate: path_suffix_not_in_set
+      field: path
+      params:
+        suffixes: {from_policy: denied_suffixes}
+      message: "files of this type cannot be read"
+
+    - id: file.path.not_directory
+      predicate: path_not_directory
+      field: path
+      message: "path is a directory, not a file"
+
+    - id: file.path.under_size_limit
+      predicate: path_under_size_limit
+      field: path
+      params:
+        max_bytes: {from_policy: max_file_bytes}
+      message: "file exceeds the {max_mb} MB limit"
+
+  # ------------------------------------------------------------------
+  # Callable standalone as check_port(), and included by docker_policy.
+  # ------------------------------------------------------------------
+  port_check:
+    - id: port.type
+      predicate: value_type
+      field: port
+      params: {type: integer}
+      message: "port must be an integer"
+
+    - id: port.range
+      predicate: integer_range
+      field: port
+      params:
+        min: {from_policy: min_port}
+        max: {from_policy: max_port}
+      message: "port must be between {min} and {max}; privileged ports are not available to this platform"
+
+    - id: port.not_reserved
+      predicate: value_not_in_set
+      field: port
+      params:
+        set: {from_policy: reserved_ports}
+      message: "port {value} is used by the platform itself"
+
+  # ------------------------------------------------------------------
+  # docker_manager / docker_tool (policy_docker)
+  # ------------------------------------------------------------------
+  docker_policy:
+    - id: docker.flags.no_escape
+      predicate: fields_not_truthy
+      params:
+        fields: [privileged, cap_add, devices, pid_mode, ipc_mode]
+      message: "{field} is not permitted on managed containers"
+
+    - id: docker.network.no_host_mode
+      predicate: field_not_equal
+      field: network_mode
+      optional: true
+      params: {value: host}
+      message: "host networking is not permitted"
+
+    - id: docker.volumes.no_socket_mount
+      predicate: list_field_not_containing_substring
+      field: volumes
+      optional: true
+      params: {substring: "docker.sock"}
+      message: "mounting the Docker socket is not permitted"
+
+    - id: docker.name.valid_format
+      predicate: regex_match
+      field: [name, container]
+      mode: alias
+      optional: true
+      params:
+        pattern: "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+      message: "container name contains characters that are not allowed"
+
+    - id: docker.name.not_protected
+      predicate: container_name_not_protected
+      field: [name, container]
+      mode: alias
+      optional: true
+      params:
+        protected: {from_policy: protected_containers}
+      message: "{value} is part of the platform itself and cannot be modified from here"
+
+    - include: port_check
+      field: port
+      optional: true
+
+    - id: docker.image.valid_format
+      predicate: regex_match
+      field: image
+      optional: true
+      when: {action_in: [deploy, run, start]}
+      params:
+        pattern: "^[a-z0-9]+([._/-][a-z0-9]+)*(:[\\w.-]+)?(@sha256:[a-f0-9]{64})?$"
+      message: "image reference is not a valid form"
+
+    - id: docker.image.not_denied_name
+      predicate: image_name_not_denied
+      field: image
+      optional: true
+      when: {action_in: [deploy, run, start]}
+      params:
+        denied_names: {from_policy: denied_image_names}
+      message: "this image is not permitted"
+
+    - id: docker.image.registry_allowed
+      predicate: image_registry_in_allowlist
+      field: image
+      optional: true
+      when: {action_in: [deploy, run, start]}
+      params:
+        allowed_registries: {from_policy: allowed_image_registries}
+      message: "images may only come from {registries}"
+
+  # ------------------------------------------------------------------
+  # kubernetes_manager / kubernetes_tool (policy_kubernetes)
+  # ------------------------------------------------------------------
+  kubernetes_policy:
+    - id: k8s.namespace.valid_format
+      predicate: regex_match
+      field: namespace
+      default: "default"
+      params:
+        pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+      message: "namespace is not a valid Kubernetes name"
+
+    - id: k8s.namespace.not_protected
+      predicate: value_not_in_set
+      field: namespace
+      default: "default"
+      params:
+        set: {from_policy: protected_namespaces}
+      message: "the {value} namespace is managed by the cluster and is read-only here"
+
+    - id: k8s.names.valid_format
+      predicate: regex_match
+      field: [deployment, name, resource]
+      mode: all
+      optional: true
+      params:
+        pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+      message: "{field} is not a valid Kubernetes name"
+
+    - id: k8s.replicas.type
+      predicate: value_type
+      field: replicas
+      optional: true
+      params: {type: integer}
+      message: "replicas must be an integer"
+
+    - id: k8s.replicas.not_negative
+      predicate: integer_min
+      field: replicas
+      optional: true
+      params: {min: 0}
+      message: "replicas cannot be negative"
+
+    - id: k8s.replicas.cap
+      predicate: integer_max
+      field: replicas
+      optional: true
+      params:
+        max: {from_policy: max_replicas}
+      message: "scaling above {max} replicas needs a cluster administrator, not this platform"

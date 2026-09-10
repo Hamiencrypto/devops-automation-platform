@@ -25,6 +25,9 @@ def audit_log(
     llm_tokens_used: int | None = None,
     llm_latency_ms: int | None = None,
     validation_result: str | None = None,
+    rule_id: str | None = None,
+    ruleset_version: str | None = None,
+    ruleset_hash: str | None = None,
     commit: bool = True,
 ) -> AuditLog:
     """Persist an audit entry. Use for every privileged / destructive action."""
@@ -39,6 +42,9 @@ def audit_log(
         llm_tokens_used=llm_tokens_used,
         llm_latency_ms=llm_latency_ms,
         validation_result=validation_result,
+        rule_id=rule_id,
+        ruleset_version=ruleset_version,
+        ruleset_hash=ruleset_hash,
     )
     db.add(entry)
     if commit:

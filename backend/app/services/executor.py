@@ -94,6 +94,9 @@ def execute_command(
     intent_source: str | None = None
     llm_tokens_used: int | None = None
     llm_latency_ms: int | None = None
+    rule_id: str | None = None
+    ruleset_version: str | None = None
+    ruleset_hash: str | None = None
 
     try:
         # --------------------------------------------------------------
@@ -192,6 +195,9 @@ def execute_command(
         if resolution.tool is None:
             raise MCPRouterError(f"Tool '{tool_call.tool_name}' is not loaded")
         tool = resolution.tool
+        rule_id = resolution.rule_id
+        ruleset_version = resolution.ruleset_version
+        ruleset_hash = resolution.ruleset_hash
 
         if not resolution.ok:
             task.status = TaskStatus.BLOCKED
@@ -215,6 +221,9 @@ def execute_command(
                 llm_tokens_used=llm_tokens_used,
                 llm_latency_ms=llm_latency_ms,
                 validation_result=f"denied: {resolution.reason}",
+                rule_id=rule_id,
+                ruleset_version=ruleset_version,
+                ruleset_hash=ruleset_hash,
             )
             return ExecuteResponse(
                 task_id=task.id,
@@ -277,6 +286,8 @@ def execute_command(
             llm_tokens_used=llm_tokens_used,
             llm_latency_ms=llm_latency_ms,
             validation_result="valid",
+            ruleset_version=ruleset_version,
+            ruleset_hash=ruleset_hash,
         )
 
         result_payload = exec_result.to_dict()
@@ -309,6 +320,9 @@ def execute_command(
             llm_tokens_used=llm_tokens_used,
             llm_latency_ms=llm_latency_ms,
             validation_result=f"routing_error: {exc}",
+            rule_id=rule_id,
+            ruleset_version=ruleset_version,
+            ruleset_hash=ruleset_hash,
         )
         return ExecuteResponse(
             task_id=task.id,
@@ -337,6 +351,9 @@ def execute_command(
             llm_tokens_used=llm_tokens_used,
             llm_latency_ms=llm_latency_ms,
             validation_result=f"error: {exc}",
+            rule_id=rule_id,
+            ruleset_version=ruleset_version,
+            ruleset_hash=ruleset_hash,
         )
         return ExecuteResponse(
             task_id=task.id,

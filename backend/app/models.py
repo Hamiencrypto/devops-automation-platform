@@ -154,6 +154,18 @@ class AuditLog(Base):
     llm_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     validation_result: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    # Policy attribution (declarative Layer-2 ruleset — app/safety/policy/).
+    # Set only for a ruleset denial: no single rule "approves" an allow, so
+    # rule_id stays null there, but ruleset_version/hash are still recorded
+    # so an allow is attributable to exactly which ruleset evaluated it.
+    # Two separate version fields, answering two different questions: the
+    # human-controlled version string is what a person reads ("denied under
+    # ruleset v1.0.0"); the content hash is what actually proves which bytes
+    # ran, immune to someone forgetting to bump the version string.
+    rule_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    ruleset_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    ruleset_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False, index=True
     )
