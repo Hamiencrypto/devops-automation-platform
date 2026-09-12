@@ -48,7 +48,7 @@ make demo                           # fires 10 representative commands
 * `deploy nginx on port 8080`  _(tick "Dry-run" first to practice)_
 * `analyze logs at /data/sample.log`  _(when running inside compose; the sample_data folder is mounted at /data)_
 * `count lines in /data/sample.log`
-* `stop mcp-managed-nginx`  _(will be blocked until you tick "Confirm destructive")_
+* `stop mcp-managed-nginx`  _(destructive — submit once to see the confirmation prompt, then confirm to run it)_
 
 ## 7. Tear down
 
