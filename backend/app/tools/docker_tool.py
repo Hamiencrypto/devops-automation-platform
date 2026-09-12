@@ -53,6 +53,12 @@ class DockerTool(MCPTool):
                 "enum": ["deploy", "list", "stop", "remove", "status", "logs"],
             },
             "image": {"type": "string", "description": "Docker image name"},
+            "original_image": {
+                "type": "string",
+                "description": "User's original wording before typo/alias resolution, "
+                "when it differs from the resolved `image` — used only to show a "
+                "friendly \"interpreted as\" message, never to select or run anything.",
+            },
             "container": {"type": "string", "description": "Container name or ID"},
             "port": {"type": "integer", "description": "Host port to publish"},
             "tail": {"type": "integer", "default": 100},

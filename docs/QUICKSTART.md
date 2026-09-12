@@ -65,3 +65,4 @@ make clean             # stop + delete the volume
 | `address already in use :3000` | Another Next.js is running; `lsof -i :3000` |
 | Postgres exits immediately | Try `make clean` to reset the volume |
 | Frontend shows "offline" | Backend not up yet — `make logs-backend` |
+| Commands 500, `make logs-backend` shows `UndefinedColumn` on `audit_logs` | Your `mcp_postgres_data` volume predates a schema change — `create_all()` creates new tables but never alters existing ones. Run `make migrate` (now also run automatically by `make up`). |

@@ -39,6 +39,13 @@ class KubernetesTool(MCPTool):
             "action": {"type": "string", "enum": ["list_pods", "deploy", "scale"]},
             "namespace": {"type": "string", "default": "default"},
             "image": {"type": "string"},
+            "original_image": {
+                "type": "string",
+                "description": "User's original wording before typo/alias resolution, "
+                "when it differs from the resolved `image`. Not currently used by this "
+                "tool; declared so a deploy through the alias table isn't rejected as "
+                "an unrecognised parameter.",
+            },
             "resource": {"type": "string"},
             "replicas": {"type": "integer"},
         },

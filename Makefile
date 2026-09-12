@@ -3,13 +3,14 @@
 # ====================================================================
 
 .PHONY: help up down logs build rebuild restart test lint backend-shell \
-        db-shell clean demo seed
+        db-shell clean demo seed migrate
 
 help:  ## Show this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-up:  ## Start the full stack (backend + frontend + db)
+up:  ## Start the full stack (backend + frontend + db) and apply pending migrations
 	docker compose up -d --build
+	$(MAKE) migrate
 	@echo ""
 	@echo "  Backend:  http://localhost:8000"
 	@echo "  Docs:     http://localhost:8000/docs"
@@ -53,3 +54,9 @@ demo:  ## Run a scripted demo against the running API
 
 seed:  ## Seed the sample_data directory with demo log files
 	bash scripts/seed_sample_data.sh
+
+migrate:  ## Apply any pending SQL migrations (database/migrations/*.sql) to the running db
+	@for f in database/migrations/*.sql; do \
+		echo "Applying $$f"; \
+		docker compose exec -T db psql -U devops -d devops_mcp -f - < $$f || exit 1; \
+	done
