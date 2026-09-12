@@ -91,6 +91,10 @@ export interface ExecuteResponse {
   duration_ms?: number;
   error?: string;
   warnings: string[];
+  // True only when status="blocked" specifically because the action is
+  // destructive and wasn't submitted with confirm_destructive=true — as
+  // opposed to a denial for any other policy reason.
+  require_confirmation: boolean;
 }
 
 export interface TaskOut {
@@ -136,6 +140,23 @@ export interface ContainerActionResponse {
 // ---------------------------------------------------------------------
 // Core request helper
 // ---------------------------------------------------------------------
+
+/** An HTTP error from the backend, carrying the status code so callers can
+ * tell "denied by policy" (403) apart from any other failure without
+ * parsing message text. */
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function isPolicyDenied(err: unknown): err is ApiError {
+  return err instanceof ApiError && err.status === 403;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -177,7 +198,7 @@ async function request<T>(
     } catch {
       /* not JSON */
     }
-    throw new Error(detail || `HTTP ${res.status} ${res.statusText}`);
+    throw new ApiError(res.status, detail || `HTTP ${res.status} ${res.statusText}`);
   }
   return res.json() as Promise<T>;
 }

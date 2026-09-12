@@ -1,28 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ScrollText,
-  RefreshCw,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { ScrollText, RefreshCw, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import DashboardShell from "@/components/layout/DashboardShell";
-import { fetchTasks, type TaskOut } from "@/lib/api";
+import { fetchTasks, type TaskOut, type TaskStatus } from "@/lib/api";
+import { getStatusMeta } from "@/lib/status";
 
 const PAGE_SIZE = 20;
-
-const STATUS_PILL: Record<string, string> = {
-  success: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-  failed: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
-  blocked: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
-  dry_run: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
-  running: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
-  pending: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-};
-
-const STATUS_OPTIONS = ["all", "success", "failed", "dry_run", "blocked", "running"];
+const STATUS_OPTIONS: (TaskStatus | "all")[] = [
+  "all",
+  "success",
+  "failed",
+  "dry_run",
+  "blocked",
+  "running",
+];
 
 export default function HistoryPage() {
   const [tasks, setTasks] = useState<TaskOut[]>([]);
@@ -31,7 +23,7 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState<TaskStatus | "all">("all");
 
   const load = useCallback(async (p: number) => {
     setLoading(true);
@@ -68,27 +60,29 @@ export default function HistoryPage() {
 
   return (
     <DashboardShell title="Task History">
-      <div className="space-y-5">
+      <div className="space-y-4">
         <div className="card">
-          <div className="card-header">
+          <div className="card-header flex-wrap">
             <div className="card-title">
               <ScrollText className="h-4 w-4" />
-              All Tasks
+              All tasks
               <span className="chip ml-1">{total}</span>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 muted" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 muted" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search commands…"
-                  className="input pl-9 py-1.5 text-xs w-56"
+                  aria-label="Search commands"
+                  className="input pl-8 py-1.5 text-xs w-52"
                 />
               </div>
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
+                onChange={(e) => setStatus(e.target.value as TaskStatus | "all")}
+                aria-label="Filter by status"
                 className="input py-1.5 text-xs w-32 capitalize"
               >
                 {STATUS_OPTIONS.map((s) => (
@@ -97,101 +91,90 @@ export default function HistoryPage() {
                   </option>
                 ))}
               </select>
-              <button
-                onClick={() => load(page)}
-                disabled={loading}
-                className="btn-secondary text-xs py-1.5 px-3"
-              >
-                <RefreshCw
-                  className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")}
-                />
-                Refresh
+              <button onClick={() => load(page)} disabled={loading} className="btn-ghost text-xs py-1.5 px-2">
+                <RefreshCw className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} />
               </button>
             </div>
           </div>
 
           {error && (
-            <div className="m-4 text-sm text-red-700 bg-red-50 dark:bg-red-500/10 dark:text-red-300 rounded p-3">
-              {error}
-            </div>
+            <div className="m-3 tone-failed text-sm rounded p-2 border-l-2 border-current">{error}</div>
           )}
 
           {filtered.length === 0 ? (
-            <p className="text-sm muted text-center py-14">
+            <p className="text-sm muted text-center py-12">
               {loading ? "Loading tasks…" : "No tasks to show."}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-medium muted border-b border-slate-200 dark:border-slate-800">
-                    <th className="py-3 pl-5 pr-4">#</th>
-                    <th className="py-3 pr-4">Command</th>
-                    <th className="py-3 pr-4">Intent</th>
-                    <th className="py-3 pr-4">Tool</th>
-                    <th className="py-3 pr-4">Status</th>
-                    <th className="py-3 pr-4">Duration</th>
-                    <th className="py-3 pr-4">When</th>
-                    <th className="py-3 pr-5">Error</th>
+                  <tr className="text-left text-xs font-medium muted border-b border-zinc-200 dark:border-zinc-800">
+                    <th className="py-2 pl-4 pr-3 font-medium">#</th>
+                    <th className="py-2 pr-3 font-medium">Command</th>
+                    <th className="py-2 pr-3 font-medium">Intent</th>
+                    <th className="py-2 pr-3 font-medium">Tool</th>
+                    <th className="py-2 pr-3 font-medium">Status</th>
+                    <th className="py-2 pr-3 font-medium text-right">Duration</th>
+                    <th className="py-2 pr-3 font-medium">When</th>
+                    <th className="py-2 pr-4 font-medium">Reason</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filtered.map((t) => (
-                    <tr
-                      key={t.id}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition"
-                    >
-                      <td className="py-3 pl-5 pr-4 font-mono text-xs muted">{t.id}</td>
-                      <td className="py-3 pr-4 max-w-sm truncate heading">{t.command}</td>
-                      <td className="py-3 pr-4">
-                        {t.detected_intent ? (
-                          <span className="chip">{t.detected_intent}</span>
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4">
-                        {t.selected_tool ? (
-                          <span className="chip">{t.selected_tool}</span>
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <span
-                          className={
-                            "badge " + (STATUS_PILL[t.status] || STATUS_PILL.pending)
-                          }
-                        >
-                          {t.status}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-4 text-xs muted">
-                        {t.duration_ms !== null ? `${t.duration_ms} ms` : "—"}
-                      </td>
-                      <td className="py-3 pr-4 text-xs muted">
-                        {new Date(t.created_at).toLocaleString()}
-                      </td>
-                      <td className="py-3 pr-5 text-xs text-red-600 dark:text-red-400 max-w-xs truncate">
-                        {t.error_message || ""}
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {filtered.map((t) => {
+                    const meta = getStatusMeta(t.status);
+                    const Icon = meta.icon;
+                    return (
+                      <tr key={t.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors">
+                        <td className="py-2 pl-4 pr-3 font-mono text-xs muted tabular-nums">{t.id}</td>
+                        <td className="py-2 pr-3 max-w-sm truncate font-mono text-xs heading">{t.command}</td>
+                        <td className="py-2 pr-3">
+                          {t.detected_intent ? (
+                            <span className="chip">{t.detected_intent}</span>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-3">
+                          {t.selected_tool ? (
+                            <span className="chip">{t.selected_tool}</span>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td className="py-2 pr-3">
+                          <span className={"badge " + meta.badgeClass}>
+                            <Icon className="h-3 w-3" />
+                            {meta.label}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-3 text-xs muted text-right tabular-nums">
+                          {t.duration_ms !== null ? `${t.duration_ms}ms` : "—"}
+                        </td>
+                        <td className="py-2 pr-3 text-xs muted tabular-nums">
+                          {new Date(t.created_at).toLocaleString()}
+                        </td>
+                        <td className={"py-2 pr-4 text-xs max-w-xs truncate " + (t.error_message ? meta.textClass : "muted")}>
+                          {t.error_message || ""}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
 
           {total > 0 && (
-            <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+            <div className="px-4 py-2.5 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
               <span className="muted">
-                Page {page} of {totalPages} · {total} total tasks
+                Page {page} of {totalPages} · {total} total
               </span>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1 || loading}
-                  className="btn-ghost px-2 py-1 disabled:opacity-40"
+                  className="btn-ghost px-1.5 py-1 disabled:opacity-40"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                   Prev
@@ -199,7 +182,7 @@ export default function HistoryPage() {
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages || loading}
-                  className="btn-ghost px-2 py-1 disabled:opacity-40"
+                  className="btn-ghost px-1.5 py-1 disabled:opacity-40"
                 >
                   Next
                   <ChevronRight className="h-3.5 w-3.5" />

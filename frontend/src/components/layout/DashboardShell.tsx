@@ -18,7 +18,7 @@ export default function DashboardShell({
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="flex flex-col items-center gap-3 muted">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Loader2 className="h-5 w-5 animate-spin" />
           <span className="text-sm">Loading…</span>
         </div>
       </div>
@@ -35,7 +35,7 @@ export default function DashboardShell({
       <Sidebar />
       <div className="flex-1 min-w-0">
         <TopBar title={title} />
-        <main className="p-6 max-w-screen-2xl mx-auto">{children}</main>
+        <main className="p-5 max-w-screen-2xl mx-auto">{children}</main>
       </div>
     </div>
   );

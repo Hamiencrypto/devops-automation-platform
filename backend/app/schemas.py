@@ -87,6 +87,11 @@ class ExecuteResponse(BaseModel):
     duration_ms: int | None = None
     error: str | None = None
     warnings: list[str] = Field(default_factory=list)
+    # True only when status="blocked" specifically because the action is
+    # destructive and wasn't submitted with confirm_destructive=true — as
+    # opposed to a denial for any other policy reason. Lets a client offer
+    # "resubmit with confirmation" only when that's actually the fix.
+    require_confirmation: bool = False
 
 
 # =====================================================================

@@ -1,9 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react";
+import { CheckCircle2, XCircle, Info, AlertTriangle, ShieldX, X } from "lucide-react";
 
-export type ToastVariant = "success" | "error" | "info" | "warn";
+export type ToastVariant = "success" | "error" | "info" | "warn" | "denied";
 
 export interface Toast {
   id: number;
@@ -67,36 +67,36 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
 
   const styles: Record<ToastVariant, { ring: string; icon: React.ElementType; color: string }> = {
     success: {
-      ring: "ring-emerald-200 bg-emerald-50 text-emerald-900 dark:ring-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200",
+      ring: "ring-emerald-600/20 bg-emerald-50 text-emerald-900 dark:ring-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-200",
       icon: CheckCircle2,
-      color: "text-emerald-600 dark:text-emerald-400",
+      color: "tone-success",
     },
     error: {
-      ring: "ring-red-200 bg-red-50 text-red-900 dark:ring-red-500/30 dark:bg-red-500/10 dark:text-red-200",
+      ring: "ring-red-600/20 bg-red-50 text-red-900 dark:ring-red-400/20 dark:bg-red-500/10 dark:text-red-200",
       icon: XCircle,
-      color: "text-red-600 dark:text-red-400",
+      color: "tone-failed",
+    },
+    denied: {
+      ring: "ring-blue-600/20 bg-blue-50 text-blue-900 dark:ring-blue-400/20 dark:bg-blue-500/10 dark:text-blue-200",
+      icon: ShieldX,
+      color: "tone-denied",
     },
     warn: {
-      ring: "ring-amber-200 bg-amber-50 text-amber-900 dark:ring-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200",
+      ring: "ring-amber-600/20 bg-amber-50 text-amber-900 dark:ring-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200",
       icon: AlertTriangle,
-      color: "text-amber-600 dark:text-amber-400",
+      color: "tone-pending",
     },
     info: {
-      ring: "ring-brand-200 bg-brand-50 text-brand-900 dark:ring-brand-500/30 dark:bg-brand-500/10 dark:text-brand-200",
+      ring: "ring-zinc-300 bg-white text-zinc-900 dark:ring-zinc-700 dark:bg-zinc-900 dark:text-zinc-100",
       icon: Info,
-      color: "text-brand-600 dark:text-brand-400",
+      color: "text-zinc-500 dark:text-zinc-400",
     },
   };
   const s = styles[toast.variant];
   const Icon = s.icon;
 
   return (
-    <div
-      className={
-        "flex items-start gap-2 rounded-xl p-3 pr-2 ring-1 shadow-lg backdrop-blur " +
-        s.ring
-      }
-    >
+    <div className={"flex items-start gap-2 rounded-lg p-3 pr-2 ring-1 " + s.ring}>
       <Icon className={"h-4 w-4 mt-0.5 shrink-0 " + s.color} />
       <p className="text-sm flex-1 break-words">{toast.message}</p>
       <button

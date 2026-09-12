@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play, TestTube2, AlertTriangle, Loader2, Terminal } from "lucide-react";
+import { ArrowRight, FlaskConical, Loader2 } from "lucide-react";
 
 interface Props {
-  onExecute: (
-    command: string,
-    opts: { dry_run: boolean; confirm_destructive: boolean }
-  ) => Promise<void>;
+  onExecute: (command: string, dryRun: boolean) => Promise<void>;
   loading: boolean;
   compact?: boolean;
   initialValue?: string;
@@ -15,11 +12,8 @@ interface Props {
 
 const SAMPLE_COMMANDS = [
   "deploy nginx on port 8080",
-  "deploy rabbitmq",
-  "deploy mongodb",
   "list all containers",
   "system health",
-  "disk usage",
   "analyze logs at /data/sample.log",
   "count lines in package.json",
 ];
@@ -32,7 +26,6 @@ export default function CommandInput({
 }: Props) {
   const [command, setCommand] = useState(initialValue ?? "");
   const [dryRun, setDryRun] = useState(false);
-  const [confirmDestructive, setConfirmDestructive] = useState(false);
 
   // Keep internal state in sync when parent passes a new prompt
   useEffect(() => {
@@ -42,84 +35,66 @@ export default function CommandInput({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!command.trim()) return;
-    await onExecute(command, {
-      dry_run: dryRun,
-      confirm_destructive: confirmDestructive,
-    });
+    await onExecute(command, dryRun);
   }
 
   return (
-    <div className={"card hero-glow relative " + (compact ? "p-4" : "p-6")}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="flex items-center gap-2 text-sm font-medium heading mb-2">
-            <Terminal className="h-4 w-4 text-brand-500" />
-            Natural Language Command
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={command}
-              onChange={(e) => setCommand(e.target.value)}
-              placeholder='Try: "deploy nginx on port 8080" or "stop abc123"'
-              className="input text-base py-3"
-              disabled={loading}
-            />
-            <button
-              type="submit"
-              className="btn-primary px-5"
-              disabled={loading || !command.trim()}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Play className="h-4 w-4" />
-                  Execute
-                </>
-              )}
-            </button>
-          </div>
+    <div className={"card " + (compact ? "p-3" : "p-4")}>
+      <form onSubmit={handleSubmit}>
+        <label htmlFor="command-input" className="label-caps mb-1.5 block">
+          Command
+        </label>
+        <div className="flex gap-2">
+          <input
+            id="command-input"
+            type="text"
+            value={command}
+            onChange={(e) => setCommand(e.target.value)}
+            placeholder='e.g. "deploy nginx on port 8080" or "stop abc123"'
+            className="input font-mono text-sm py-2.5"
+            disabled={loading}
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            type="submit"
+            className="btn-primary px-4 shrink-0"
+            disabled={loading || !command.trim()}
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                Run
+                <ArrowRight className="h-3.5 w-3.5" />
+              </>
+            )}
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <label className="flex items-center gap-2 text-sm muted cursor-pointer">
-            <input
-              type="checkbox"
-              checked={dryRun}
-              onChange={(e) => setDryRun(e.target.checked)}
-              className="rounded accent-brand-500"
-            />
-            <TestTube2 className="h-4 w-4 text-amber-500" />
-            Dry-run mode (plan only, don&apos;t execute)
-          </label>
-          <label className="flex items-center gap-2 text-sm muted cursor-pointer">
-            <input
-              type="checkbox"
-              checked={confirmDestructive}
-              onChange={(e) => setConfirmDestructive(e.target.checked)}
-              className="rounded accent-red-500"
-            />
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-            Confirm destructive actions
-          </label>
-        </div>
+        <label className="mt-2.5 flex w-fit items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={dryRun}
+            onChange={(e) => setDryRun(e.target.checked)}
+            className="rounded accent-zinc-900 dark:accent-zinc-100"
+          />
+          <FlaskConical className="h-3.5 w-3.5" />
+          Dry run — plan only, don&apos;t execute
+        </label>
       </form>
 
       {!compact && (
-        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-          <p className="text-xs font-medium muted mb-2 tracking-wider">
-            QUICK EXAMPLES
-          </p>
-          <div className="flex flex-wrap gap-2">
+        <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+          <p className="label-caps mb-2">Try one of these</p>
+          <div className="flex flex-wrap gap-1.5">
             {SAMPLE_COMMANDS.map((sample) => (
               <button
                 key={sample}
                 onClick={() => setCommand(sample)}
-                className="text-xs px-3 py-1.5 rounded-md
-                           bg-slate-100 text-slate-700 hover:bg-brand-100 hover:text-brand-700
-                           dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-brand-500/15
-                           dark:hover:text-brand-300 transition"
+                className="rounded px-2 py-1 font-mono text-xs text-zinc-600 bg-zinc-100
+                           hover:bg-zinc-200 hover:text-zinc-900 transition-colors
+                           dark:text-zinc-400 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                 type="button"
               >
                 {sample}

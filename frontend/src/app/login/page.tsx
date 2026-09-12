@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Cpu, Loader2, Moon, Sun, AlertCircle } from "lucide-react";
+import { ShieldCheck, Loader2, Moon, Sun, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 
@@ -20,7 +20,6 @@ function LoginForm() {
 
   const next = params.get("next") || "/";
 
-  // If already logged in or auth disabled, bounce
   useEffect(() => {
     if (loading) return;
     if (!authEnabled || user) router.replace(next);
@@ -45,32 +44,29 @@ function LoginForm() {
       <button
         type="button"
         onClick={toggleTheme}
-        className="absolute top-4 right-4 btn-ghost px-2"
+        className="absolute top-4 right-4 btn-ghost px-1.5"
         aria-label="Toggle theme"
       >
         {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </button>
 
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl
-                          bg-gradient-to-br from-brand-500 to-brand-700 text-white
-                          shadow-glow mb-4">
-            <Cpu className="h-6 w-6" />
+      <div className="w-full max-w-sm">
+        <div className="mb-7 text-center">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 mb-4">
+            <ShieldCheck className="h-5 w-5" />
           </div>
-          <h1 className="text-2xl font-bold heading">DevOps MCP Platform</h1>
-          <p className="text-sm muted mt-1">
-            Sign in to continue to the dashboard
-          </p>
+          <h1 className="text-xl font-semibold heading">DevOps MCP Platform</h1>
+          <p className="text-sm muted mt-1">Sign in to continue</p>
         </div>
 
-        <div className="card p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="card p-5">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             <div>
-              <label className="block text-sm font-medium heading mb-1.5">
+              <label htmlFor="username" className="block text-sm font-medium heading mb-1.5">
                 Username
               </label>
               <input
+                id="username"
                 type="text"
                 required
                 autoFocus
@@ -82,10 +78,11 @@ function LoginForm() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium heading mb-1.5">
+              <label htmlFor="password" className="block text-sm font-medium heading mb-1.5">
                 Password
               </label>
               <input
+                id="password"
                 type="password"
                 required
                 autoComplete="current-password"
@@ -97,34 +94,20 @@ function LoginForm() {
             </div>
 
             {error && (
-              <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-sm
-                              text-red-800 ring-1 ring-red-200
-                              dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/20">
+              <div className="tone-failed text-sm rounded-md border-l-2 border-current pl-3 py-1.5 flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn-primary w-full"
-            >
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Sign in"
-              )}
+            <button type="submit" disabled={submitting} className="btn-primary w-full">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
             </button>
           </form>
 
-          <div className="mt-6 text-center text-sm muted">
+          <div className="mt-5 text-center text-sm muted">
             Don&apos;t have an account?{" "}
-            <Link
-              href="/register"
-              className="font-medium text-brand-600 hover:text-brand-700
-                         dark:text-brand-400 dark:hover:text-brand-300"
-            >
+            <Link href="/register" className="font-medium heading hover:underline">
               Create one
             </Link>
           </div>
@@ -141,7 +124,7 @@ function LoginForm() {
 function LoginFallback() {
   return (
     <div className="min-h-screen auth-bg flex items-center justify-center">
-      <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+      <Loader2 className="h-5 w-5 animate-spin muted" />
     </div>
   );
 }

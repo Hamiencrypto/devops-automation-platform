@@ -169,6 +169,7 @@ def execute_command(
                 error=check.reason,
                 warnings=warnings,
                 duration_ms=task.duration_ms,
+                require_confirmation=check.require_confirmation,
             )
 
         # --------------------------------------------------------------
@@ -229,6 +230,7 @@ def execute_command(
                 task_id=task.id,
                 status=TaskStatus.BLOCKED,
                 intent=intent,
+                tool_call=tool_call,
                 error=resolution.reason,
                 warnings=warnings,
                 duration_ms=task.duration_ms,

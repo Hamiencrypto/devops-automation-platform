@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity } from "lucide-react";
+import { Circle } from "lucide-react";
 import { fetchHealth, API_BASE_URL } from "@/lib/api";
 
 type HealthState = {
@@ -9,6 +9,11 @@ type HealthState = {
   version: string;
   checks: Record<string, string>;
   errorDetail?: string;
+};
+
+const STATUS_CLASS: Record<string, string> = {
+  ok: "badge-success",
+  degraded: "badge-pending",
 };
 
 export default function HealthBadge() {
@@ -41,13 +46,7 @@ export default function HealthBadge() {
 
   if (!health) return null;
 
-  const color =
-    health.status === "ok"
-      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-      : health.status === "degraded"
-        ? "bg-amber-100 text-amber-700 border-amber-200"
-        : "bg-red-100 text-red-700 border-red-200";
-
+  const cls = STATUS_CLASS[health.status] || "badge-failed";
   const tooltip =
     health.errorDetail ||
     Object.entries(health.checks)
@@ -55,12 +54,8 @@ export default function HealthBadge() {
       .join("\n");
 
   return (
-    <span
-      className={"badge border " + color}
-      title={tooltip}
-      style={{ cursor: "help" }}
-    >
-      <Activity className="h-3 w-3" />
+    <span className={"badge " + cls} title={tooltip}>
+      <Circle className="h-2 w-2 fill-current" />
       {health.status} · v{health.version}
     </span>
   );

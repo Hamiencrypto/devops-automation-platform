@@ -3,25 +3,14 @@
 import { useEffect, useState } from "react";
 import { History, RefreshCw } from "lucide-react";
 import { fetchTasks, type TaskOut } from "@/lib/api";
-
-const STATUS_PILL: Record<string, string> = {
-  success:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-  failed: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
-  blocked: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
-  dry_run: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
-  running: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
-  pending: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-};
+import { getStatusMeta } from "@/lib/status";
 
 export default function TaskHistory({
   refreshKey = 0,
   limit = 10,
-  compact,
 }: {
   refreshKey?: number;
   limit?: number;
-  compact?: boolean;
 }) {
   const [tasks, setTasks] = useState<TaskOut[]>([]);
   const [loading, setLoading] = useState(false);
@@ -50,94 +39,81 @@ export default function TaskHistory({
       <div className="card-header">
         <div className="card-title">
           <History className="h-4 w-4" />
-          Task History
+          Task history
         </div>
-        <button
-          className="btn-secondary text-xs py-1.5 px-3"
-          onClick={load}
-          disabled={loading}
-        >
-          <RefreshCw
-            className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")}
-          />
+        <button className="btn-ghost text-xs py-1 px-2" onClick={load} disabled={loading}>
+          <RefreshCw className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} />
           Refresh
         </button>
       </div>
 
-      <div className={compact ? "p-0" : ""}>
-        {error && (
-          <div className="m-4 text-sm text-red-600 bg-red-50 dark:bg-red-500/10 dark:text-red-300 rounded p-3">
-            {error}
-          </div>
-        )}
+      {error && (
+        <div className="m-3 tone-failed text-sm rounded p-2 border-l-2 border-current">
+          {error}
+        </div>
+      )}
 
-        {tasks.length === 0 && !loading ? (
-          <p className="text-sm muted text-center py-10">
-            No tasks yet. Run a command to see it here.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs font-medium muted border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3 pl-5 pr-4">#</th>
-                  <th className="py-3 pr-4">Command</th>
-                  <th className="py-3 pr-4">Intent</th>
-                  <th className="py-3 pr-4">Tool</th>
-                  <th className="py-3 pr-4">Status</th>
-                  <th className="py-3 pr-4">Duration</th>
-                  <th className="py-3 pr-5">Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {tasks.map((t) => (
-                  <tr
-                    key={t.id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition"
-                  >
-                    <td className="py-3 pl-5 pr-4 font-mono text-xs muted">
-                      {t.id}
-                    </td>
-                    <td className="py-3 pr-4 max-w-xs truncate heading">
+      {tasks.length === 0 && !loading ? (
+        <p className="text-sm muted text-center py-8">
+          No tasks yet. Run a command to see it here.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs font-medium muted border-b border-zinc-200 dark:border-zinc-800">
+                <th className="py-2 pl-4 pr-3 font-medium">#</th>
+                <th className="py-2 pr-3 font-medium">Command</th>
+                <th className="py-2 pr-3 font-medium">Intent</th>
+                <th className="py-2 pr-3 font-medium">Tool</th>
+                <th className="py-2 pr-3 font-medium">Status</th>
+                <th className="py-2 pr-3 font-medium text-right">Duration</th>
+                <th className="py-2 pr-4 font-medium text-right">Time</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              {tasks.map((t) => {
+                const meta = getStatusMeta(t.status);
+                const Icon = meta.icon;
+                return (
+                  <tr key={t.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors">
+                    <td className="py-2 pl-4 pr-3 font-mono text-xs muted tabular-nums">{t.id}</td>
+                    <td className="py-2 pr-3 max-w-xs truncate font-mono text-xs heading">
                       {t.command}
                     </td>
-                    <td className="py-3 pr-4">
+                    <td className="py-2 pr-3">
                       {t.detected_intent ? (
                         <span className="chip">{t.detected_intent}</span>
                       ) : (
                         <span className="muted">—</span>
                       )}
                     </td>
-                    <td className="py-3 pr-4">
+                    <td className="py-2 pr-3">
                       {t.selected_tool ? (
                         <span className="chip">{t.selected_tool}</span>
                       ) : (
                         <span className="muted">—</span>
                       )}
                     </td>
-                    <td className="py-3 pr-4">
-                      <span
-                        className={
-                          "badge " +
-                          (STATUS_PILL[t.status] || STATUS_PILL.pending)
-                        }
-                      >
-                        {t.status}
+                    <td className="py-2 pr-3">
+                      <span className={"badge " + meta.badgeClass}>
+                        <Icon className="h-3 w-3" />
+                        {meta.label}
                       </span>
                     </td>
-                    <td className="py-3 pr-4 text-xs muted">
-                      {t.duration_ms !== null ? `${t.duration_ms} ms` : "—"}
+                    <td className="py-2 pr-3 text-xs muted text-right tabular-nums">
+                      {t.duration_ms !== null ? `${t.duration_ms}ms` : "—"}
                     </td>
-                    <td className="py-3 pr-5 text-xs muted">
+                    <td className="py-2 pr-4 text-xs muted text-right tabular-nums">
                       {new Date(t.created_at).toLocaleTimeString()}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,7 +10,7 @@ import {
   ScrollText,
   Radio,
   Settings,
-  Cpu,
+  ShieldCheck,
 } from "lucide-react";
 
 const NAV = [
@@ -28,26 +28,20 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="hidden lg:flex w-64 shrink-0 flex-col border-r border-slate-200
-                 dark:border-slate-800 bg-white dark:bg-[#0b1220]
+      className="hidden lg:flex w-56 shrink-0 flex-col border-r border-zinc-200
+                 dark:border-zinc-800 bg-white dark:bg-canvas-dark
                  sticky top-0 h-screen"
     >
-      <div className="px-5 py-5 border-b border-slate-200 dark:border-slate-800">
-        <Link href="/" className="flex items-center gap-3">
-          <div
-            className="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700
-                       text-white flex items-center justify-center shadow-glow"
-          >
-            <Cpu className="h-5 w-5" />
+      <div className="px-4 py-4 border-b border-zinc-200 dark:border-zinc-800">
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="h-7 w-7 rounded-md bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center">
+            <ShieldCheck className="h-4 w-4" />
           </div>
-          <div>
-            <div className="text-sm font-semibold heading">DevOps MCP</div>
-            <div className="text-xs muted">Automation Platform</div>
-          </div>
+          <div className="text-sm font-semibold heading leading-none">DevOps MCP</div>
         </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
@@ -55,6 +49,7 @@ export default function Sidebar() {
               key={href}
               href={href}
               className={"sidebar-link " + (active ? "active" : "")}
+              aria-current={active ? "page" : undefined}
             >
               <Icon className="h-4 w-4" />
               {label}
@@ -63,8 +58,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-800 text-xs muted">
-        <div className="font-medium heading mb-1">FYP 2025–2026</div>
+      <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 text-xs muted">
         University of Sindh
         <br />
         Dept. of Information Technology

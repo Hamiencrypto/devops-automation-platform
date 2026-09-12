@@ -8,9 +8,7 @@ import {
   Square,
   Trash2,
   Copy,
-  CheckCircle2,
-  Filter,
-  Shield,
+  ShieldCheck,
   Circle,
 } from "lucide-react";
 import DashboardShell from "@/components/layout/DashboardShell";
@@ -21,6 +19,7 @@ import {
   fetchContainers,
   stopContainer,
   removeContainer,
+  isPolicyDenied,
   type ContainerInfo,
 } from "@/lib/api";
 
@@ -28,15 +27,10 @@ type FilterKind = "all" | "managed" | "running" | "stopped";
 
 function statusTone(status: string) {
   const s = (status || "").toLowerCase();
-  if (s.includes("running") || s.includes("up"))
-    return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300";
-  if (s.includes("exited") || s.includes("stopped") || s.includes("dead"))
-    return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
-  if (s.includes("paused"))
-    return "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300";
-  if (s.includes("restart"))
-    return "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300";
-  return "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300";
+  if (s.includes("running") || s.includes("up")) return "badge-success";
+  if (s.includes("exited") || s.includes("stopped") || s.includes("dead")) return "badge-neutral";
+  if (s.includes("paused")) return "badge-pending";
+  return "badge-neutral";
 }
 
 function formatPorts(ports: unknown): string {
@@ -73,8 +67,7 @@ export default function ContainersPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKind>("all");
   const [confirmAction, setConfirmAction] = useState<
-    | { kind: "stop" | "remove"; container: ContainerInfo }
-    | null
+    { kind: "stop" | "remove"; container: ContainerInfo } | null
   >(null);
 
   const canMutate = !user || user.role !== "viewer";
@@ -124,8 +117,7 @@ export default function ContainersPage() {
   async function runAction(kind: "stop" | "remove", c: ContainerInfo) {
     setBusyId(c.id);
     try {
-      const res =
-        kind === "stop" ? await stopContainer(c.id) : await removeContainer(c.id);
+      const res = kind === "stop" ? await stopContainer(c.id) : await removeContainer(c.id);
       if (res.success) {
         push(
           res.summary || `${kind === "stop" ? "Stopped" : "Removed"} ${c.name || c.id.slice(0, 12)}`,
@@ -136,7 +128,14 @@ export default function ContainersPage() {
       }
       await load();
     } catch (e) {
-      push((e as Error).message, "error");
+      // A 403 here is the safety boundary refusing the action, not a
+      // failure of the action — distinct toast, distinct colour, distinct
+      // icon, same as every other place this app shows a policy decision.
+      if (isPolicyDenied(e)) {
+        push(e.message, "denied", 6000);
+      } else {
+        push((e as Error).message, "error");
+      }
     } finally {
       setBusyId(null);
       setConfirmAction(null);
@@ -151,38 +150,31 @@ export default function ContainersPage() {
   }
 
   const counts = useMemo(() => {
-    const running = containers.filter((c) =>
-      (c.status || "").toLowerCase().includes("running")
-    ).length;
+    const running = containers.filter((c) => (c.status || "").toLowerCase().includes("running")).length;
     const managed = containers.filter((c) => c.managed).length;
     return { total: containers.length, running, managed };
   }, [containers]);
 
   return (
     <DashboardShell title="Containers">
-      <div className="space-y-5">
-        {/* Summary strip */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="stat-card">
-            <p className="text-xs uppercase font-medium muted tracking-wider">Total</p>
-            <p className="text-2xl font-bold heading mt-1">{counts.total}</p>
+      <div className="space-y-4">
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="card p-3.5">
+            <p className="label-caps">Total</p>
+            <p className="text-xl font-semibold heading mt-1 tabular-nums">{counts.total}</p>
           </div>
-          <div className="stat-card">
-            <p className="text-xs uppercase font-medium muted tracking-wider">Running</p>
-            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-              {counts.running}
-            </p>
+          <div className="card p-3.5">
+            <p className="label-caps">Running</p>
+            <p className="text-xl font-semibold tone-success mt-1 tabular-nums">{counts.running}</p>
           </div>
-          <div className="stat-card">
-            <p className="text-xs uppercase font-medium muted tracking-wider">Managed</p>
-            <p className="text-2xl font-bold text-brand-600 dark:text-brand-400 mt-1">
-              {counts.managed}
-            </p>
+          <div className="card p-3.5">
+            <p className="label-caps">Managed</p>
+            <p className="text-xl font-semibold heading mt-1 tabular-nums">{counts.managed}</p>
           </div>
-          <div className="stat-card">
-            <p className="text-xs uppercase font-medium muted tracking-wider">Role</p>
-            <p className="text-lg font-semibold heading mt-1 flex items-center gap-2">
-              <Shield className="h-4 w-4 text-brand-500" />
+          <div className="card p-3.5">
+            <p className="label-caps">Role</p>
+            <p className="text-sm font-medium heading mt-1.5 flex items-center gap-1.5 capitalize">
+              <ShieldCheck className="h-3.5 w-3.5 text-zinc-400" />
               {user?.role || "anonymous"}
             </p>
           </div>
@@ -192,57 +184,50 @@ export default function ContainersPage() {
           <div className="card-header">
             <div className="card-title">
               <Boxes className="h-4 w-4" />
-              Container Registry
+              Container registry
             </div>
             <div className="flex items-center gap-2">
               <div className="relative hidden sm:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 muted" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 muted" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search by name, image, ID…"
-                  className="input pl-9 py-1.5 text-xs w-60"
+                  placeholder="Search…"
+                  aria-label="Search containers"
+                  className="input pl-8 py-1.5 text-xs w-52"
                 />
               </div>
-              <div className="hidden md:flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 p-1">
+              <div className="hidden md:flex items-center gap-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 p-0.5">
                 {(["all", "running", "stopped", "managed"] as FilterKind[]).map((f) => (
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
                     className={
-                      "text-xs px-2 py-1 rounded-md capitalize transition " +
+                      "text-xs px-2 py-1 rounded capitalize transition-colors " +
                       (filter === f
-                        ? "bg-white shadow-sm heading dark:bg-slate-900"
-                        : "muted hover:text-slate-900 dark:hover:text-slate-100")
+                        ? "bg-white shadow-sm heading dark:bg-zinc-950"
+                        : "muted hover:text-zinc-900 dark:hover:text-zinc-100")
                     }
                   >
                     {f}
                   </button>
                 ))}
               </div>
-              <button
-                onClick={load}
-                disabled={loading}
-                className="btn-secondary text-xs py-1.5 px-3"
-                title="Refresh"
-              >
-                <RefreshCw
-                  className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")}
-                />
-                Refresh
+              <button onClick={load} disabled={loading} className="btn-ghost text-xs py-1.5 px-2" title="Refresh">
+                <RefreshCw className={"h-3.5 w-3.5 " + (loading ? "animate-spin" : "")} />
               </button>
             </div>
           </div>
 
-          {/* Mobile search */}
-          <div className="sm:hidden px-4 pt-3">
+          <div className="sm:hidden px-3 pt-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 muted" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 muted" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search…"
-                className="input pl-9 py-1.5 text-sm w-full"
+                aria-label="Search containers"
+                className="input pl-8 py-1.5 text-sm w-full"
               />
             </div>
             <div className="flex gap-1 mt-2 overflow-x-auto">
@@ -251,10 +236,8 @@ export default function ContainersPage() {
                   key={f}
                   onClick={() => setFilter(f)}
                   className={
-                    "text-xs px-3 py-1 rounded-full capitalize whitespace-nowrap " +
-                    (filter === f
-                      ? "bg-brand-500 text-white"
-                      : "bg-slate-100 dark:bg-slate-800 muted")
+                    "text-xs px-2.5 py-1 rounded-full capitalize whitespace-nowrap " +
+                    (filter === f ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 muted")
                   }
                 >
                   {f}
@@ -264,23 +247,12 @@ export default function ContainersPage() {
           </div>
 
           {error && (
-            <div
-              className="m-4 text-sm text-red-700 bg-red-50 dark:bg-red-500/10 dark:text-red-300
-                         rounded-lg p-3 flex items-center gap-2"
-            >
-              <Filter className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
+            <div className="m-3 tone-failed text-sm rounded p-2 border-l-2 border-current">{error}</div>
           )}
 
           {filtered.length === 0 ? (
-            <div className="py-14 text-center">
-              <div
-                className="h-14 w-14 mx-auto rounded-2xl bg-slate-100 dark:bg-slate-800
-                           flex items-center justify-center mb-3"
-              >
-                <Boxes className="h-7 w-7 muted" />
-              </div>
+            <div className="py-12 text-center">
+              <Boxes className="h-6 w-6 muted mx-auto mb-2" />
               <p className="text-sm muted">
                 {loading
                   ? "Loading containers…"
@@ -293,85 +265,68 @@ export default function ContainersPage() {
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-medium muted border-b border-slate-200 dark:border-slate-800">
-                    <th className="py-3 pl-5 pr-4">Name</th>
-                    <th className="py-3 pr-4">Container ID</th>
-                    <th className="py-3 pr-4">Image</th>
-                    <th className="py-3 pr-4">Status</th>
-                    <th className="py-3 pr-4">Ports</th>
-                    <th className="py-3 pr-5 text-right">Actions</th>
+                  <tr className="text-left text-xs font-medium muted border-b border-zinc-200 dark:border-zinc-800">
+                    <th className="py-2 pl-4 pr-3 font-medium">Name</th>
+                    <th className="py-2 pr-3 font-medium">ID</th>
+                    <th className="py-2 pr-3 font-medium">Image</th>
+                    <th className="py-2 pr-3 font-medium">Status</th>
+                    <th className="py-2 pr-3 font-medium">Ports</th>
+                    <th className="py-2 pr-4 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   {filtered.map((c) => {
                     const shortId = c.id.slice(0, 12);
                     const running = (c.status || "").toLowerCase().includes("running");
                     const isBusy = busyId === c.id;
                     return (
-                      <tr
-                        key={c.id}
-                        className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition"
-                      >
-                        <td className="py-3 pl-5 pr-4">
+                      <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors">
+                        <td className="py-2 pl-4 pr-3">
                           <div className="flex items-center gap-2 min-w-0">
                             <Circle
-                              className={
-                                "h-2 w-2 shrink-0 " +
-                                (running
-                                  ? "fill-emerald-500 text-emerald-500"
-                                  : "fill-slate-400 text-slate-400")
-                              }
+                              className={"h-2 w-2 shrink-0 " + (running ? "fill-emerald-500 text-emerald-500" : "fill-zinc-400 text-zinc-400")}
                             />
                             <div className="min-w-0">
-                              <div className="font-medium heading truncate max-w-[12rem]">
+                              <div className="font-medium heading truncate max-w-[11rem]">
                                 {c.name || "(unnamed)"}
                               </div>
                               {c.managed && (
-                                <div className="text-[10px] text-brand-600 dark:text-brand-400 mt-0.5 inline-flex items-center gap-1">
-                                  <Shield className="h-2.5 w-2.5" />
+                                <div className="text-[10px] muted mt-0.5 inline-flex items-center gap-1">
+                                  <ShieldCheck className="h-2.5 w-2.5" />
                                   managed by MCP
                                 </div>
                               )}
                             </div>
                           </div>
                         </td>
-                        <td className="py-3 pr-4">
+                        <td className="py-2 pr-3">
                           <button
                             type="button"
                             onClick={() => copyId(c.id)}
-                            className="group inline-flex items-center gap-1.5 font-mono text-xs
-                                       px-2 py-1 rounded bg-slate-100 dark:bg-slate-800
-                                       hover:bg-brand-100 dark:hover:bg-brand-500/15 transition"
-                            title={"Click to copy full ID: " + c.id}
+                            className="group inline-flex items-center gap-1.5 font-mono text-xs px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                            title={"Copy full ID: " + c.id}
                           >
                             {shortId}
                             <Copy className="h-3 w-3 opacity-50 group-hover:opacity-100" />
                           </button>
                         </td>
-                        <td className="py-3 pr-4 font-mono text-xs truncate max-w-[14rem]">
+                        <td className="py-2 pr-3 font-mono text-xs truncate max-w-[13rem] muted">
                           {c.image || "—"}
                         </td>
-                        <td className="py-3 pr-4">
-                          <span className={"badge " + statusTone(c.status)}>
-                            {c.status || "unknown"}
-                          </span>
+                        <td className="py-2 pr-3">
+                          <span className={"badge " + statusTone(c.status)}>{c.status || "unknown"}</span>
                         </td>
-                        <td className="py-3 pr-4 text-xs muted max-w-[12rem] truncate">
+                        <td className="py-2 pr-3 text-xs muted max-w-[11rem] truncate">
                           {formatPorts(c.ports)}
                         </td>
-                        <td className="py-3 pr-5">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="py-2 pr-4">
+                          <div className="flex items-center justify-end gap-1">
                             {canMutate && running && (
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setConfirmAction({ kind: "stop", container: c })
-                                }
+                                onClick={() => setConfirmAction({ kind: "stop", container: c })}
                                 disabled={isBusy}
-                                className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md
-                                           bg-amber-50 text-amber-700 hover:bg-amber-100
-                                           disabled:opacity-50 disabled:cursor-not-allowed
-                                           dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20"
+                                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded tone-pending hover:bg-amber-50 dark:hover:bg-amber-500/10 disabled:opacity-50"
                                 title="Stop container"
                               >
                                 <Square className="h-3 w-3" />
@@ -381,25 +336,16 @@ export default function ContainersPage() {
                             {canMutate && (
                               <button
                                 type="button"
-                                onClick={() =>
-                                  setConfirmAction({ kind: "remove", container: c })
-                                }
+                                onClick={() => setConfirmAction({ kind: "remove", container: c })}
                                 disabled={isBusy}
-                                className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md
-                                           bg-red-50 text-red-700 hover:bg-red-100
-                                           disabled:opacity-50 disabled:cursor-not-allowed
-                                           dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20"
+                                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded tone-failed hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50"
                                 title="Remove container"
                               >
                                 <Trash2 className="h-3 w-3" />
                                 Remove
                               </button>
                             )}
-                            {!canMutate && (
-                              <span className="text-[10px] muted italic">
-                                read-only
-                              </span>
-                            )}
+                            {!canMutate && <span className="text-[10px] muted italic">read-only</span>}
                           </div>
                         </td>
                       </tr>
@@ -411,15 +357,11 @@ export default function ContainersPage() {
           )}
 
           {!loading && containers.length > 0 && (
-            <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-800
-                            text-xs muted flex items-center justify-between flex-wrap gap-2">
+            <div className="px-4 py-2.5 border-t border-zinc-200 dark:border-zinc-800 text-xs muted flex items-center justify-between flex-wrap gap-2">
               <span>
-                Showing {filtered.length} of {containers.length} containers
+                Showing {filtered.length} of {containers.length}
               </span>
-              <span className="inline-flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                Auto-refresh every 10s
-              </span>
+              <span>Auto-refresh every 10s</span>
             </div>
           )}
         </div>
@@ -428,9 +370,7 @@ export default function ContainersPage() {
       <ConfirmDialog
         open={!!confirmAction}
         busy={busyId !== null}
-        title={
-          confirmAction?.kind === "stop" ? "Stop this container?" : "Remove this container?"
-        }
+        title={confirmAction?.kind === "stop" ? "Stop this container?" : "Remove this container?"}
         message={
           confirmAction ? (
             <div className="space-y-2">
@@ -439,17 +379,17 @@ export default function ContainersPage() {
                   ? "This will send a SIGTERM to the container and wait for it to stop gracefully."
                   : "This will permanently remove the container. Its data will be lost unless it was persisted to a volume."}
               </p>
-              <div className="rounded-lg bg-slate-50 dark:bg-slate-800/60 p-2 text-xs font-mono">
+              <div className="rounded bg-zinc-50 dark:bg-zinc-800/60 p-2 text-xs font-mono">
                 <div>
-                  <span className="muted">ID:&nbsp;&nbsp;&nbsp;</span>
+                  <span className="muted">ID: </span>
                   {confirmAction.container.id.slice(0, 24)}
                 </div>
                 <div>
-                  <span className="muted">Name:&nbsp;</span>
+                  <span className="muted">Name: </span>
                   {confirmAction.container.name || "(unnamed)"}
                 </div>
                 <div>
-                  <span className="muted">Image:</span>{" "}
+                  <span className="muted">Image: </span>
                   {confirmAction.container.image}
                 </div>
               </div>

@@ -39,19 +39,11 @@ export default function ToolsList({
   }, []);
 
   if (loading) {
-    return (
-      <div className="card p-6 text-sm muted text-center">
-        Loading registered tools…
-      </div>
-    );
+    return <div className="card p-5 text-sm muted text-center">Loading registered tools…</div>;
   }
 
   if (tools.length === 0) {
-    return (
-      <div className="card p-6 text-sm muted text-center">
-        No MCP tools registered yet.
-      </div>
-    );
+    return <div className="card p-5 text-sm muted text-center">No MCP tools registered yet.</div>;
   }
 
   const display = compact ? tools.slice(0, 6) : tools;
@@ -62,40 +54,31 @@ export default function ToolsList({
         <div className="card-header">
           <div className="card-title">
             <Wrench className="h-4 w-4" />
-            Registered MCP Tools
+            Registered MCP tools
             <span className="chip ml-1">{tools.length}</span>
           </div>
         </div>
       )}
 
-      <div className={"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 " + (showTitle ? "p-4" : "")}>
+      <div className={"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 " + (showTitle ? "p-3" : "")}>
         {display.map((tool) => {
           const Icon = CATEGORY_ICON[tool.category] || Wrench;
           return (
             <div
               key={tool.name}
-              className="group rounded-xl border border-slate-200 p-4 hover:border-brand-400 hover:shadow-md
-                         transition bg-white
-                         dark:bg-slate-900/40 dark:border-slate-800 dark:hover:border-brand-500/40"
+              className="rounded-md border border-zinc-200 p-3 hover:border-zinc-400 transition-colors
+                         dark:border-zinc-800 dark:hover:border-zinc-600"
             >
-              <div className="flex items-start gap-3">
-                <div
-                  className="h-10 w-10 rounded-lg bg-brand-50 text-brand-600
-                             flex items-center justify-center shrink-0 group-hover:bg-brand-100
-                             dark:bg-brand-500/10 dark:text-brand-300 dark:group-hover:bg-brand-500/20"
-                >
-                  <Icon className="h-5 w-5" />
+              <div className="flex items-start gap-2.5">
+                <div className="h-8 w-8 rounded-md bg-zinc-100 text-zinc-600 flex items-center justify-center shrink-0 dark:bg-zinc-800 dark:text-zinc-300">
+                  <Icon className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-mono text-sm font-semibold heading truncate">
-                      {tool.name}
-                    </p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-mono text-xs font-semibold heading truncate">{tool.name}</p>
                     {tool.destructive && (
                       <span
-                        className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded
-                                   bg-red-100 text-red-700
-                                   dark:bg-red-500/15 dark:text-red-300"
+                        className="inline-flex items-center gap-1 text-[10px] px-1 py-0.5 rounded tone-failed bg-red-50 dark:bg-red-500/10"
                         title="This tool can modify or destroy state"
                       >
                         <AlertTriangle className="h-2.5 w-2.5" />
@@ -104,16 +87,14 @@ export default function ToolsList({
                     )}
                   </div>
                   <p className="text-xs muted mt-1 line-clamp-2">{tool.description}</p>
-                  <div className="mt-2 flex flex-wrap gap-1">
+                  <div className="mt-1.5 flex flex-wrap gap-1">
                     {tool.intents.slice(0, 3).map((i) => (
                       <span key={i} className="chip text-[10px]">
                         {i}
                       </span>
                     ))}
                     {tool.intents.length > 3 && (
-                      <span className="chip text-[10px]">
-                        +{tool.intents.length - 3}
-                      </span>
+                      <span className="chip text-[10px]">+{tool.intents.length - 3}</span>
                     )}
                   </div>
                 </div>

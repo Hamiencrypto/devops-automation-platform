@@ -1,15 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { Cpu, Regex, Database, HelpCircle } from "lucide-react";
 
 /**
  * Shows how an intent was resolved, next to the result it produced.
  *
  * The design goal is a status line, not a badge collection. An operator
  * scanning a page of results needs to notice the one that was resolved by a
- * model at low confidence — so that case gets the visual weight and the
- * ordinary regex case stays almost silent. Colour is backed by a text label
- * throughout, so the meaning survives greyscale and colour-blindness.
+ * model at low confidence — so that case gets the visual weight (the
+ * reserved "degraded confidence" violet) and the ordinary regex case stays
+ * almost silent. Colour is backed by an icon and a text label throughout,
+ * so the meaning survives greyscale and colour-blindness.
  */
 
 export type IntentSource = "regex" | "llm" | "cache" | "none";
@@ -24,24 +26,28 @@ export interface IntentConfidenceProps {
   className?: string;
 }
 
-const SOURCE_COPY: Record<IntentSource, { label: string; detail: string }> = {
+const SOURCE_COPY: Record<IntentSource, { label: string; detail: string; icon: typeof Regex }> = {
   regex: {
     label: "Pattern match",
+    icon: Regex,
     detail:
       "Matched a known command pattern locally. No model was called and nothing was sent off the server.",
   },
   llm: {
     label: "Language model",
+    icon: Cpu,
     detail:
       "The pattern engine was unsure, so a language model proposed a tool call. The proposal was checked against the tool's schema before anything ran.",
   },
   cache: {
-    label: "Cached result",
+    label: "Cached resolution",
+    icon: Database,
     detail:
       "This wording was resolved by a model earlier and reused from the local cache.",
   },
   none: {
     label: "Unresolved",
+    icon: HelpCircle,
     detail: "The command could not be mapped to a tool, so nothing ran.",
   },
 };
@@ -53,11 +59,14 @@ function band(confidence: number, source: IntentSource) {
   return "low" as const;
 }
 
+// Only "degraded" (low/none) is one of the five reserved meaning colours.
+// High/medium confidence is deliberately unremarkable — the point is that
+// the one case worth noticing is the one that stands out.
 const BAND_STYLES = {
-  high: "text-emerald-700 dark:text-emerald-400",
-  medium: "text-amber-700 dark:text-amber-400",
-  low: "text-rose-700 dark:text-rose-400",
-  none: "text-slate-500 dark:text-slate-400",
+  high: "text-zinc-700 dark:text-zinc-300",
+  medium: "text-zinc-700 dark:text-zinc-300",
+  low: "tone-degraded font-semibold",
+  none: "tone-degraded font-semibold",
 } as const;
 
 const BAND_LABEL = {
@@ -80,13 +89,14 @@ export function IntentConfidence({
   const level = band(confidence, source);
   const pct = Math.round(Math.max(0, Math.min(1, confidence)) * 100);
   const copy = SOURCE_COPY[source];
+  const SourceIcon = copy.icon;
   const needsAttention = level === "low" || level === "none";
 
   return (
     <div className={`text-sm ${className}`}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         {intent && (
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+          <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-xs text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
             {intent}
           </code>
         )}
@@ -98,7 +108,7 @@ export function IntentConfidence({
           )}
         </span>
 
-        <span className="text-slate-400 dark:text-slate-600" aria-hidden>
+        <span className="text-zinc-300 dark:text-zinc-700" aria-hidden>
           /
         </span>
 
@@ -106,31 +116,32 @@ export function IntentConfidence({
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="rounded text-slate-600 underline decoration-dotted underline-offset-4 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 dark:text-slate-400 dark:hover:text-slate-100"
+          className="inline-flex items-center gap-1 rounded text-zinc-600 underline decoration-dotted underline-offset-4 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-500 dark:text-zinc-400 dark:hover:text-zinc-100"
         >
+          <SourceIcon className="h-3 w-3" />
           {copy.label}
         </button>
 
         {typeof latencyMs === "number" && (
-          <span className="tabular-nums text-xs text-slate-500 dark:text-slate-500">
-            {latencyMs} ms
+          <span className="tabular-nums text-xs text-zinc-500 dark:text-zinc-500">
+            {latencyMs}ms
           </span>
         )}
         {typeof tokensUsed === "number" && tokensUsed > 0 && (
-          <span className="tabular-nums text-xs text-slate-500 dark:text-slate-500">
-            {tokensUsed.toLocaleString()} tokens
+          <span className="tabular-nums text-xs text-zinc-500 dark:text-zinc-500">
+            {tokensUsed.toLocaleString()} tok
           </span>
         )}
       </div>
 
       {needsAttention && reason && (
-        <p className="mt-1.5 border-l-2 border-current pl-2.5 text-slate-700 dark:text-slate-300">
-          <span className={BAND_STYLES[level]}>{reason}</span>
+        <p className="mt-1.5 border-l-2 border-current pl-2.5 tone-degraded">
+          {reason}
         </p>
       )}
 
       {open && (
-        <p className="mt-1.5 max-w-prose text-xs leading-relaxed text-slate-600 dark:text-slate-400">
+        <p className="mt-1.5 max-w-prose text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
           {copy.detail}
         </p>
       )}

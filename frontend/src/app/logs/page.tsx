@@ -61,14 +61,8 @@ export default function LogsPage() {
     setLines((prev) => {
       const next = [
         ...prev,
-        {
-          id: idRef.current++,
-          text,
-          ts: new Date().toLocaleTimeString(),
-          kind,
-        },
+        { id: idRef.current++, text, ts: new Date().toLocaleTimeString(), kind },
       ];
-      // Cap at 2000 lines to avoid memory runaway
       return next.length > 2000 ? next.slice(next.length - 2000) : next;
     });
   }, []);
@@ -144,10 +138,9 @@ export default function LogsPage() {
   }
 
   function download() {
-    const blob = new Blob(
-      [lines.map((l) => `[${l.ts}] ${l.text}`).join("\n")],
-      { type: "text/plain" }
-    );
+    const blob = new Blob([lines.map((l) => `[${l.ts}] ${l.text}`).join("\n")], {
+      type: "text/plain",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -164,23 +157,24 @@ export default function LogsPage() {
   }
 
   const statusDot = {
-    idle: "bg-slate-400",
+    idle: "bg-zinc-400",
     connecting: "bg-amber-400 animate-pulse",
     open: "bg-emerald-500 animate-pulse",
-    closed: "bg-slate-500",
+    closed: "bg-zinc-500",
     error: "bg-red-500",
   }[status];
 
   return (
     <DashboardShell title="Live Logs">
-      <div className="space-y-5">
-        <div className="card p-5">
+      <div className="space-y-4">
+        <div className="card p-4">
           <div className="flex flex-col md:flex-row md:items-end gap-3">
             <div className="flex-1 min-w-0">
-              <label className="block text-xs font-medium uppercase muted tracking-wider mb-1.5">
+              <label htmlFor="log-container-select" className="label-caps mb-1.5 block">
                 Select container
               </label>
               <select
+                id="log-container-select"
                 value={target}
                 onChange={(e) => {
                   setTarget(e.target.value);
@@ -197,17 +191,18 @@ export default function LogsPage() {
               </select>
             </div>
             <div className="flex-1 min-w-0">
-              <label className="block text-xs font-medium uppercase muted tracking-wider mb-1.5">
+              <label htmlFor="log-container-custom" className="label-caps mb-1.5 block">
                 Or container ID / name
               </label>
               <input
+                id="log-container-custom"
                 value={custom}
                 onChange={(e) => {
                   setCustom(e.target.value);
                   setTarget("");
                 }}
                 placeholder="e.g. abc123def456 or my-nginx"
-                className="input w-full"
+                className="input w-full font-mono"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -224,10 +219,10 @@ export default function LogsPage() {
               )}
             </div>
           </div>
-          <div className="mt-3 flex items-center gap-2 text-xs muted">
+          <div className="mt-2.5 flex items-center gap-2 text-xs muted">
             <span className={"h-2 w-2 rounded-full " + statusDot} />
             Status: <span className="heading">{status}</span>
-            <span className="muted">·</span>
+            <span>·</span>
             <LinkIcon className="h-3 w-3" />
             <code className="font-mono">{toWsBase()}/ws/logs/…</code>
           </div>
@@ -241,48 +236,33 @@ export default function LogsPage() {
               <span className="chip ml-1">{lines.length} lines</span>
             </div>
             <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-xs muted cursor-pointer">
+              <label className="flex items-center gap-1.5 text-xs muted cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={autoScroll}
                   onChange={(e) => setAutoScroll(e.target.checked)}
-                  className="accent-brand-500 rounded"
+                  className="accent-zinc-900 dark:accent-zinc-100 rounded"
                 />
                 Follow tail
               </label>
-              <button
-                onClick={copyAll}
-                className="btn-secondary text-xs py-1.5 px-3"
-                disabled={lines.length === 0}
-              >
+              <button onClick={copyAll} className="btn-ghost text-xs py-1.5 px-2" disabled={lines.length === 0}>
                 <Copy className="h-3.5 w-3.5" />
-                Copy
               </button>
-              <button
-                onClick={download}
-                className="btn-secondary text-xs py-1.5 px-3"
-                disabled={lines.length === 0}
-              >
+              <button onClick={download} className="btn-ghost text-xs py-1.5 px-2" disabled={lines.length === 0}>
                 <Download className="h-3.5 w-3.5" />
-                Download
               </button>
-              <button
-                onClick={clearLog}
-                className="btn-secondary text-xs py-1.5 px-3"
-                disabled={lines.length === 0}
-              >
+              <button onClick={clearLog} className="btn-ghost text-xs py-1.5 px-2" disabled={lines.length === 0}>
                 <Trash2 className="h-3.5 w-3.5" />
-                Clear
               </button>
             </div>
           </div>
 
           <div
             ref={scrollerRef}
-            className="bg-slate-950 text-slate-100 font-mono text-xs p-4 h-[30rem] overflow-auto"
+            className="bg-zinc-950 text-zinc-100 font-mono text-xs p-3.5 h-[30rem] overflow-auto"
           >
             {lines.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-500">
+              <div className="flex flex-col items-center justify-center h-full gap-2 text-zinc-600">
                 <CircleOff className="h-5 w-5" />
                 No logs yet. Pick a container and click Stream.
               </div>
@@ -292,14 +272,10 @@ export default function LogsPage() {
                   key={l.id}
                   className={
                     "whitespace-pre-wrap break-words " +
-                    (l.kind === "error"
-                      ? "text-red-400"
-                      : l.kind === "info"
-                        ? "text-brand-300"
-                        : "text-green-300")
+                    (l.kind === "error" ? "text-red-400" : l.kind === "info" ? "text-zinc-400" : "text-emerald-300")
                   }
                 >
-                  <span className="text-slate-500">[{l.ts}] </span>
+                  <span className="text-zinc-600">[{l.ts}] </span>
                   {l.text}
                 </div>
               ))
