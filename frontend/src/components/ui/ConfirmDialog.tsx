@@ -20,17 +20,17 @@ interface Props {
 const INTENT_STYLE: Record<ConfirmIntent, { icon: typeof ShieldAlert; iconClass: string; btn: string }> = {
   danger: {
     icon: AlertTriangle,
-    iconClass: "tone-failed bg-red-50 dark:bg-red-500/10",
+    iconClass: "tone-failed bg-red-500/10",
     btn: "btn-danger",
   },
   warn: {
     icon: ShieldAlert,
-    iconClass: "tone-pending bg-amber-50 dark:bg-amber-500/10",
-    btn: "btn bg-amber-600 text-white hover:bg-amber-700 focus-visible:ring-amber-500",
+    iconClass: "tone-pending bg-amber-500/10",
+    btn: "btn bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-[0_0_20px_-4px_rgba(245,158,11,0.55)] hover:shadow-[0_0_28px_-4px_rgba(245,158,11,0.65)] hover:-translate-y-px focus-visible:ring-amber-400",
   },
   info: {
     icon: Info,
-    iconClass: "text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800",
+    iconClass: "text-zinc-600 dark:text-zinc-300 bg-black/5 dark:bg-white/10",
     btn: "btn-primary",
   },
 };
@@ -65,7 +65,7 @@ export default function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/30 backdrop-blur-sm"
       onClick={() => !busy && onCancel()}
       role="presentation"
     >

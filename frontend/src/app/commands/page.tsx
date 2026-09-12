@@ -79,7 +79,7 @@ export default function CommandsPage() {
                         key={it.cmd}
                         type="button"
                         onClick={() => setDraft(it.cmd)}
-                        className="w-full text-left p-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                        className="w-full text-left p-2 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                       >
                         <div className="font-mono text-xs heading truncate">{it.cmd}</div>
                         <div className="text-[11px] muted mt-0.5">{it.note}</div>

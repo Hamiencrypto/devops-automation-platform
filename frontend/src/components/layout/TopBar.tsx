@@ -36,8 +36,8 @@ export default function TopBar({ title }: { title: string }) {
   return (
     <header
       className="sticky top-0 z-20 flex h-12 items-center justify-between gap-4
-                 border-b border-zinc-200 bg-white/90 px-5 backdrop-blur
-                 dark:border-zinc-800 dark:bg-canvas-dark/90"
+                 border-b border-black/5 bg-white/60 px-5 backdrop-blur-xl
+                 dark:border-white/10 dark:bg-white/[0.03]"
     >
       <h1 className="text-sm font-semibold heading">{title}</h1>
 
@@ -61,10 +61,10 @@ export default function TopBar({ title }: { title: string }) {
               onClick={() => setMenuOpen((v) => !v)}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
-              className="flex items-center gap-2 rounded-md px-1.5 py-1
-                         hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="flex items-center gap-2 rounded-xl px-1.5 py-1
+                         hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
             >
-              <div className="h-6 w-6 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 flex items-center justify-center text-[10px] font-semibold">
+              <div className="h-6 w-6 rounded-full bg-gradient-brand text-white flex items-center justify-center text-[10px] font-semibold">
                 {user.username.slice(0, 2).toUpperCase()}
               </div>
               <div className="hidden md:block text-left">
@@ -77,11 +77,11 @@ export default function TopBar({ title }: { title: string }) {
             {menuOpen && (
               <div
                 role="menu"
-                className="absolute right-0 mt-1.5 w-52 rounded-lg bg-white ring-1
-                           ring-zinc-200 dark:bg-canvas-dark-raised dark:ring-zinc-800
-                           overflow-hidden shadow-lg"
+                className="absolute right-0 mt-1.5 w-52 rounded-xl bg-white/80 backdrop-blur-xl ring-1
+                           ring-black/5 dark:bg-canvas-dark-raised/90 dark:ring-white/10
+                           overflow-hidden shadow-glass dark:shadow-glass-dark"
               >
-                <div className="px-3 py-2.5 border-b border-zinc-200 dark:border-zinc-800">
+                <div className="px-3 py-2.5 border-b border-black/5 dark:border-white/10">
                   <div className="text-sm font-medium heading">{user.username}</div>
                   <div className="text-xs muted flex items-center gap-1 mt-0.5">
                     {roleIcon}
@@ -97,8 +97,8 @@ export default function TopBar({ title }: { title: string }) {
                       router.push("/settings");
                     }}
                     className="w-full flex items-center gap-2 px-3 py-1.5 text-sm
-                               text-zinc-700 hover:bg-zinc-100
-                               dark:text-zinc-200 dark:hover:bg-zinc-800"
+                               text-zinc-700 hover:bg-black/5
+                               dark:text-zinc-200 dark:hover:bg-white/10"
                   >
                     <UserCircle2 className="h-3.5 w-3.5" />
                     Profile & settings
@@ -110,7 +110,7 @@ export default function TopBar({ title }: { title: string }) {
                       logout();
                       router.replace("/login");
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-sm tone-failed hover:bg-red-50 dark:hover:bg-red-500/10"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-sm tone-failed hover:bg-red-500/10"
                   >
                     <LogOut className="h-3.5 w-3.5" />
                     Sign out

@@ -47,8 +47,8 @@ function ThemeButton({
       className={
         "flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-colors " +
         (active
-          ? "border-zinc-900 bg-zinc-50 heading dark:border-zinc-100 dark:bg-zinc-800"
-          : "border-zinc-200 hover:border-zinc-300 muted dark:border-zinc-800 dark:hover:border-zinc-700")
+          ? "border-violet-400 bg-violet-500/10 heading dark:border-violet-500/60"
+          : "border-black/10 hover:border-black/20 muted dark:border-white/10 dark:hover:border-white/20")
       }
     >
       <Icon className="h-4 w-4" />
@@ -93,7 +93,7 @@ export default function SettingsPage() {
 
           {user ? (
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 flex items-center justify-center text-base font-semibold">
+              <div className="h-12 w-12 rounded-full bg-gradient-brand text-white flex items-center justify-center text-base font-semibold">
                 {user.username.slice(0, 2).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
@@ -165,15 +165,20 @@ export default function SettingsPage() {
               <p className="label-caps mb-1.5">Service checks</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {Object.entries(health.checks).map(([k, v]) => {
+                  // "ok"/"healthy" are real up/down checks; a bare number
+                  // (tools_loaded: "5") is an informational count, not a
+                  // failure — only treat it as broken if it's neither.
                   const ok = v === "ok" || v === "healthy";
+                  const isCount = /^\d+$/.test(v);
+                  const badgeClass = ok ? "badge-success" : isCount ? "badge-neutral" : "badge-failed";
                   return (
                     <div
                       key={k}
-                      className="flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 bg-zinc-50 dark:bg-zinc-900 text-sm"
+                      className="flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 bg-black/5 dark:bg-white/5 text-sm"
                     >
                       <span className="muted shrink-0">{k}</span>
                       <span
-                        className={"badge min-w-0 max-w-[70%] truncate " + (ok ? "badge-success" : "badge-failed")}
+                        className={"badge min-w-0 max-w-[70%] truncate " + badgeClass}
                         title={v}
                       >
                         {v}
@@ -198,7 +203,7 @@ export default function SettingsPage() {
               removes the token from this device.
             </p>
           </div>
-          <div className="pt-3.5 border-t border-zinc-200 dark:border-zinc-800">
+          <div className="pt-3.5 border-t border-black/5 dark:border-white/10">
             <div className="flex items-center gap-1.5 mb-1.5">
               <Info className="h-4 w-4 text-zinc-400" />
               <h2 className="text-sm font-semibold heading">About</h2>
@@ -219,7 +224,7 @@ export default function SettingsPage() {
 
 function InfoBox({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="rounded-md bg-zinc-50 dark:bg-zinc-900 p-2.5">
+    <div className="rounded-md bg-black/5 dark:bg-white/5 p-2.5">
       <p className="label-caps">{label}</p>
       <p className={"mt-1 text-sm heading break-all " + (mono ? "font-mono" : "")}>{value}</p>
     </div>

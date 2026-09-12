@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* =====================================================================
-   Base — near-monochrome, dense, dark-first
+   Base
    ===================================================================== */
 html,
 body {
@@ -17,7 +17,7 @@ html.dark {
 }
 
 body {
-  @apply bg-white text-zinc-900 antialiased;
+  @apply bg-canvas-sunken text-zinc-900 antialiased;
 }
 
 html.dark body {
@@ -33,24 +33,31 @@ html.dark body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-zinc-300 rounded-full;
+  @apply bg-zinc-300/70 rounded-full;
 }
 html.dark ::-webkit-scrollbar-thumb {
-  @apply bg-zinc-700;
+  @apply bg-zinc-700/70;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob,
+  .animate-blob-slow {
+    animation: none !important;
+  }
 }
 
 /* =====================================================================
    Components
    ===================================================================== */
 @layer components {
-  /* -- Surfaces --------------------------------------------------- */
+  /* -- Surfaces: frosted glass ------------------------------------- */
   .card {
-    @apply rounded-lg bg-white ring-1 ring-zinc-200
-           dark:bg-canvas-dark-raised dark:ring-zinc-800 transition-colors;
+    @apply rounded-2xl bg-white/70 backdrop-blur-xl ring-1 ring-white/60 shadow-glass
+           dark:bg-white/[0.05] dark:ring-white/10 dark:shadow-glass-dark transition-colors;
   }
 
   .card-header {
-    @apply px-4 py-3 border-b border-zinc-200 dark:border-zinc-800
+    @apply px-4 py-3 border-b border-black/5 dark:border-white/10
            flex items-center justify-between gap-3;
   }
 
@@ -63,75 +70,78 @@ html.dark ::-webkit-scrollbar-thumb {
     @apply p-4;
   }
 
-  /* -- Buttons — monochrome by default; colour is earned, not default -- */
+  /* -- Buttons ------------------------------------------------------ */
   .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5
-           text-sm font-medium transition-colors focus-visible:outline-none
+    @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-1.5
+           text-sm font-medium transition-all focus-visible:outline-none
            focus-visible:ring-2 focus-visible:ring-offset-2
            focus-visible:ring-offset-white dark:focus-visible:ring-offset-canvas-dark
            disabled:opacity-45 disabled:cursor-not-allowed;
   }
 
   .btn-primary {
-    @apply btn bg-zinc-900 text-white hover:bg-zinc-700
-           focus-visible:ring-zinc-500
-           dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200;
+    @apply btn bg-gradient-brand text-white shadow-glow
+           hover:shadow-glow-lg hover:-translate-y-px
+           focus-visible:ring-violet-400;
   }
 
   .btn-secondary {
-    @apply btn bg-zinc-100 text-zinc-700 hover:bg-zinc-200
-           dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700
+    @apply btn bg-white/60 text-zinc-700 ring-1 ring-black/5 backdrop-blur
+           hover:bg-white/90
+           dark:bg-white/5 dark:text-zinc-200 dark:ring-white/10 dark:hover:bg-white/10
            focus-visible:ring-zinc-400;
   }
 
   .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700
-           focus-visible:ring-red-500;
+    @apply btn bg-gradient-to-br from-red-500 to-rose-600 text-white
+           shadow-[0_0_20px_-4px_rgba(244,63,94,0.55)]
+           hover:shadow-[0_0_28px_-4px_rgba(244,63,94,0.65)] hover:-translate-y-px
+           focus-visible:ring-red-400;
   }
 
   .btn-ghost {
-    @apply btn text-zinc-600 hover:bg-zinc-100
-           dark:text-zinc-400 dark:hover:bg-zinc-800
+    @apply btn text-zinc-600 hover:bg-black/5
+           dark:text-zinc-400 dark:hover:bg-white/10
            focus-visible:ring-zinc-400;
   }
 
   /* -- Forms -------------------------------------------------------- */
   .input {
-    @apply w-full rounded-md border border-zinc-300 bg-white px-3 py-1.5
+    @apply w-full rounded-xl border border-black/10 bg-white/60 backdrop-blur px-3 py-1.5
            text-sm text-zinc-900 placeholder:text-zinc-400
-           focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 focus:outline-none
-           dark:border-zinc-700 dark:bg-canvas-dark-sunken dark:text-zinc-100
-           dark:placeholder:text-zinc-500 dark:focus:border-zinc-500 dark:focus:ring-zinc-800
+           focus:border-violet-400 focus:ring-2 focus:ring-violet-200 focus:outline-none
+           dark:border-white/10 dark:bg-white/5 dark:text-zinc-100
+           dark:placeholder:text-zinc-500 dark:focus:border-violet-500 dark:focus:ring-violet-500/20
            transition-colors;
   }
 
   /* -- Tags ----------------------------------------------------------- */
   .badge {
-    @apply inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium
-           ring-1 ring-inset;
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium
+           ring-1 ring-inset backdrop-blur-sm;
   }
 
   .chip {
-    @apply inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium font-mono
-           bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300;
+    @apply inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium font-mono
+           bg-black/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-300;
   }
 
   /* -- Navigation ------------------------------------------------------ */
   .sidebar-link {
-    @apply flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm font-medium
-           text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900
-           dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100
+    @apply flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-sm font-medium
+           text-zinc-600 hover:bg-black/5 hover:text-zinc-900
+           dark:text-zinc-400 dark:hover:bg-white/10 dark:hover:text-zinc-100
            transition-colors;
   }
 
   .sidebar-link.active {
-    @apply bg-zinc-100 text-zinc-900
-           dark:bg-zinc-800 dark:text-zinc-50;
+    @apply bg-gradient-brand-soft text-violet-700 ring-1 ring-violet-500/20
+           dark:text-violet-300 dark:ring-violet-400/20;
   }
 
   /* -- Typography helpers ---------------------------------------------- */
   .divide-subtle > * + * {
-    @apply border-t border-zinc-200 dark:border-zinc-800;
+    @apply border-t border-black/5 dark:border-white/10;
   }
 
   .muted {
@@ -148,71 +158,88 @@ html.dark ::-webkit-scrollbar-thumb {
 
   /* -- Data / code display ---------------------------------------------- */
   .json-viewer {
-    @apply font-mono text-xs rounded-md bg-zinc-50 p-3 overflow-x-auto
-           dark:bg-zinc-950 dark:text-zinc-300 leading-6 ring-1 ring-zinc-200 dark:ring-zinc-800;
+    @apply font-mono text-xs rounded-xl bg-zinc-950/95 p-3 overflow-x-auto
+           text-zinc-300 leading-6 ring-1 ring-white/10;
   }
 
   /* =====================================================================
-     Meaning colour — the ONLY five places colour carries information on
-     its own (always paired with an icon + text label, never colour alone).
+     Meaning colour — unchanged from the previous pass, on purpose. These
+     five colours are a functional contract (denied/failed/succeeded/
+     needs-confirmation/degraded must be instantly distinguishable), not a
+     decorative choice — the glass treatment changes how they're rendered,
+     never which hue means what.
      ===================================================================== */
 
-  /* Succeeded: status="success" | "dry_run" */
   .tone-success {
     @apply text-emerald-700 dark:text-emerald-400;
   }
   .badge-success {
-    @apply badge bg-emerald-50 text-emerald-700 ring-emerald-600/20
-           dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-400/20;
+    @apply badge bg-emerald-500/10 text-emerald-800 ring-emerald-600/25
+           dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/25;
   }
 
-  /* Denied by policy: status="blocked" (and require_confirmation=false) —
-     the safety boundary did its job. Never red, never amber: this is not
-     an error and must not look like one. */
+  /* Denied by policy — deliberately not red or amber: this is the system
+     working correctly, not an error. */
   .tone-denied {
     @apply text-blue-700 dark:text-blue-400;
   }
   .badge-denied {
-    @apply badge bg-blue-50 text-blue-700 ring-blue-600/20
-           dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-400/20;
+    @apply badge bg-blue-500/10 text-blue-800 ring-blue-600/25
+           dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-400/25;
   }
 
-  /* Needs confirmation: status="blocked" and require_confirmation=true —
-     a distinct, actionable state: resubmitting can proceed. */
+  /* Needs confirmation */
   .tone-pending {
     @apply text-amber-700 dark:text-amber-400;
   }
   .badge-pending {
-    @apply badge bg-amber-50 text-amber-700 ring-amber-600/20
-           dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-400/20;
+    @apply badge bg-amber-500/10 text-amber-800 ring-amber-600/25
+           dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-400/25;
   }
 
-  /* Failed: status="failed" — the only state that should read as broken. */
+  /* Failed — the one state that should read as broken */
   .tone-failed {
     @apply text-red-700 dark:text-red-400;
   }
   .badge-failed {
-    @apply badge bg-red-50 text-red-700 ring-red-600/20
-           dark:bg-red-500/10 dark:text-red-400 dark:ring-red-400/20;
+    @apply badge bg-red-500/10 text-red-800 ring-red-600/25
+           dark:bg-red-500/10 dark:text-red-300 dark:ring-red-400/25;
   }
 
-  /* Degraded confidence: low-confidence intent resolution. Violet, so it
-     never reads as an error (red) or a caution-to-act-on (amber). */
+  /* Degraded intent confidence */
   .tone-degraded {
     @apply text-violet-700 dark:text-violet-400;
   }
 
-  /* Neutral / in-progress: pending, running */
+  /* Neutral / in-progress */
   .tone-neutral {
     @apply text-zinc-600 dark:text-zinc-400;
   }
   .badge-neutral {
-    @apply badge bg-zinc-100 text-zinc-600 ring-zinc-500/20
-           dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-600/30;
+    @apply badge bg-black/5 text-zinc-700 ring-zinc-500/20
+           dark:bg-white/10 dark:text-zinc-300 dark:ring-zinc-500/30;
   }
 }
 
-/* Auth pages: plain, no gradient glow */
+/* =====================================================================
+   Background blobs — soft, blurred, slowly drifting colour fields behind
+   every translucent panel. Fixed + -z-10 so the whole app (auth pages
+   included, via layout.tsx) sits above them. Respects prefers-reduced-motion
+   (see the media query above, which disables the animation entirely).
+   ===================================================================== */
+.blob-field {
+  @apply pointer-events-none fixed inset-0 -z-10 overflow-hidden;
+}
+
+.blob {
+  @apply absolute rounded-full blur-3xl opacity-40 dark:opacity-30;
+}
+
+/* Deliberately no background colour here — auth pages sit in normal flow
+   above the fixed, negatively-stacked .blob-field, and a static-positioned
+   element with an opaque background always paints over a negative-z-index
+   one regardless of DOM order. Leaving this transparent is what lets the
+   blobs show through, same as every dashboard page. */
 .auth-bg {
-  @apply bg-zinc-50 dark:bg-canvas-dark;
+  @apply bg-transparent;
 }

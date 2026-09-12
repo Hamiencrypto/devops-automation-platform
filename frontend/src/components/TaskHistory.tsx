@@ -61,7 +61,7 @@ export default function TaskHistory({
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="text-left text-xs font-medium muted border-b border-zinc-200 dark:border-zinc-800">
+              <tr className="text-left text-xs font-medium muted border-b border-black/5 dark:border-white/10">
                 <th className="py-2 pl-4 pr-3 font-medium">#</th>
                 <th className="py-2 pr-3 font-medium">Command</th>
                 <th className="py-2 pr-3 font-medium">Intent</th>
@@ -71,12 +71,12 @@ export default function TaskHistory({
                 <th className="py-2 pr-4 font-medium text-right">Time</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tbody className="divide-y divide-black/5 dark:divide-white/10">
               {tasks.map((t) => {
                 const meta = getStatusMeta(t.status);
                 const Icon = meta.icon;
                 return (
-                  <tr key={t.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors">
+                  <tr key={t.id} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
                     <td className="py-2 pl-4 pr-3 font-mono text-xs muted tabular-nums">{t.id}</td>
                     <td className="py-2 pr-3 max-w-xs truncate font-mono text-xs heading">
                       {t.command}

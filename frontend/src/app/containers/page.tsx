@@ -197,7 +197,7 @@ export default function ContainersPage() {
                   className="input pl-8 py-1.5 text-xs w-52"
                 />
               </div>
-              <div className="hidden md:flex items-center gap-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 p-0.5">
+              <div className="hidden md:flex items-center gap-0.5 rounded-md bg-black/5 dark:bg-white/10 p-0.5">
                 {(["all", "running", "stopped", "managed"] as FilterKind[]).map((f) => (
                   <button
                     key={f}
@@ -205,7 +205,7 @@ export default function ContainersPage() {
                     className={
                       "text-xs px-2 py-1 rounded capitalize transition-colors " +
                       (filter === f
-                        ? "bg-white shadow-sm heading dark:bg-zinc-950"
+                        ? "bg-white/80 backdrop-blur shadow-sm heading dark:bg-white/10"
                         : "muted hover:text-zinc-900 dark:hover:text-zinc-100")
                     }
                   >
@@ -237,7 +237,7 @@ export default function ContainersPage() {
                   onClick={() => setFilter(f)}
                   className={
                     "text-xs px-2.5 py-1 rounded-full capitalize whitespace-nowrap " +
-                    (filter === f ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 muted")
+                    (filter === f ? "bg-zinc-900 text-white dark:bg-white dark:text-zinc-900" : "bg-black/5 dark:bg-white/10 muted")
                   }
                 >
                   {f}
@@ -265,7 +265,7 @@ export default function ContainersPage() {
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-medium muted border-b border-zinc-200 dark:border-zinc-800">
+                  <tr className="text-left text-xs font-medium muted border-b border-black/5 dark:border-white/10">
                     <th className="py-2 pl-4 pr-3 font-medium">Name</th>
                     <th className="py-2 pr-3 font-medium">ID</th>
                     <th className="py-2 pr-3 font-medium">Image</th>
@@ -274,13 +274,13 @@ export default function ContainersPage() {
                     <th className="py-2 pr-4 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                <tbody className="divide-y divide-black/5 dark:divide-white/10">
                   {filtered.map((c) => {
                     const shortId = c.id.slice(0, 12);
                     const running = (c.status || "").toLowerCase().includes("running");
                     const isBusy = busyId === c.id;
                     return (
-                      <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors">
+                      <tr key={c.id} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
                         <td className="py-2 pl-4 pr-3">
                           <div className="flex items-center gap-2 min-w-0">
                             <Circle
@@ -303,7 +303,7 @@ export default function ContainersPage() {
                           <button
                             type="button"
                             onClick={() => copyId(c.id)}
-                            className="group inline-flex items-center gap-1.5 font-mono text-xs px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                            className="group inline-flex items-center gap-1.5 font-mono text-xs px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
                             title={"Copy full ID: " + c.id}
                           >
                             {shortId}
@@ -326,7 +326,7 @@ export default function ContainersPage() {
                                 type="button"
                                 onClick={() => setConfirmAction({ kind: "stop", container: c })}
                                 disabled={isBusy}
-                                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded tone-pending hover:bg-amber-50 dark:hover:bg-amber-500/10 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded tone-pending hover:bg-amber-500/10 disabled:opacity-50"
                                 title="Stop container"
                               >
                                 <Square className="h-3 w-3" />
@@ -338,7 +338,7 @@ export default function ContainersPage() {
                                 type="button"
                                 onClick={() => setConfirmAction({ kind: "remove", container: c })}
                                 disabled={isBusy}
-                                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded tone-failed hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded tone-failed hover:bg-red-500/10 disabled:opacity-50"
                                 title="Remove container"
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -357,7 +357,7 @@ export default function ContainersPage() {
           )}
 
           {!loading && containers.length > 0 && (
-            <div className="px-4 py-2.5 border-t border-zinc-200 dark:border-zinc-800 text-xs muted flex items-center justify-between flex-wrap gap-2">
+            <div className="px-4 py-2.5 border-t border-black/5 dark:border-white/10 text-xs muted flex items-center justify-between flex-wrap gap-2">
               <span>
                 Showing {filtered.length} of {containers.length}
               </span>

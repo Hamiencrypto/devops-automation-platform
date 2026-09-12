@@ -66,11 +66,11 @@ export default function ToolsList({
           return (
             <div
               key={tool.name}
-              className="rounded-md border border-zinc-200 p-3 hover:border-zinc-400 transition-colors
-                         dark:border-zinc-800 dark:hover:border-zinc-600"
+              className="rounded-xl border border-black/10 bg-white/40 backdrop-blur p-3 hover:border-violet-400/50 transition-colors
+                         dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-violet-500/40"
             >
               <div className="flex items-start gap-2.5">
-                <div className="h-8 w-8 rounded-md bg-zinc-100 text-zinc-600 flex items-center justify-center shrink-0 dark:bg-zinc-800 dark:text-zinc-300">
+                <div className="h-8 w-8 rounded-md bg-violet-500/10 text-violet-600 flex items-center justify-center shrink-0 dark:text-violet-400">
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -78,7 +78,7 @@ export default function ToolsList({
                     <p className="font-mono text-xs font-semibold heading truncate">{tool.name}</p>
                     {tool.destructive && (
                       <span
-                        className="inline-flex items-center gap-1 text-[10px] px-1 py-0.5 rounded tone-failed bg-red-50 dark:bg-red-500/10"
+                        className="inline-flex items-center gap-1 text-[10px] px-1 py-0.5 rounded tone-failed bg-red-500/10"
                         title="This tool can modify or destroy state"
                       >
                         <AlertTriangle className="h-2.5 w-2.5" />

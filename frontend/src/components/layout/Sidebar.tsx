@@ -28,13 +28,13 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="hidden lg:flex w-56 shrink-0 flex-col border-r border-zinc-200
-                 dark:border-zinc-800 bg-white dark:bg-canvas-dark
+      className="hidden lg:flex w-56 shrink-0 flex-col border-r border-black/5
+                 dark:border-white/10 bg-white/60 backdrop-blur-xl dark:bg-white/[0.03]
                  sticky top-0 h-screen"
     >
-      <div className="px-4 py-4 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="px-4 py-4 border-b border-black/5 dark:border-white/10">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-md bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 flex items-center justify-center">
+          <div className="h-7 w-7 rounded-lg bg-gradient-brand text-white shadow-glow flex items-center justify-center">
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div className="text-sm font-semibold heading leading-none">DevOps MCP</div>
@@ -58,7 +58,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 text-xs muted">
+      <div className="px-4 py-3 border-t border-black/5 dark:border-white/10 text-xs muted">
         University of Sindh
         <br />
         Dept. of Information Technology

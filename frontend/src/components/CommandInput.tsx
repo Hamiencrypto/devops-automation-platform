@@ -77,7 +77,7 @@ export default function CommandInput({
             type="checkbox"
             checked={dryRun}
             onChange={(e) => setDryRun(e.target.checked)}
-            className="rounded accent-zinc-900 dark:accent-zinc-100"
+            className="rounded accent-violet-500"
           />
           <FlaskConical className="h-3.5 w-3.5" />
           Dry run — plan only, don&apos;t execute
@@ -85,16 +85,16 @@ export default function CommandInput({
       </form>
 
       {!compact && (
-        <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/10">
           <p className="label-caps mb-2">Try one of these</p>
           <div className="flex flex-wrap gap-1.5">
             {SAMPLE_COMMANDS.map((sample) => (
               <button
                 key={sample}
                 onClick={() => setCommand(sample)}
-                className="rounded px-2 py-1 font-mono text-xs text-zinc-600 bg-zinc-100
-                           hover:bg-zinc-200 hover:text-zinc-900 transition-colors
-                           dark:text-zinc-400 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                className="rounded-lg px-2 py-1 font-mono text-xs text-zinc-600 bg-black/5 backdrop-blur
+                           hover:bg-violet-500/10 hover:text-violet-700 transition-colors
+                           dark:text-zinc-400 dark:bg-white/5 dark:hover:bg-violet-500/15 dark:hover:text-violet-300"
                 type="button"
               >
                 {sample}

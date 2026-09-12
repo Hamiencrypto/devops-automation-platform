@@ -109,7 +109,7 @@ export default function HistoryPage() {
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-medium muted border-b border-zinc-200 dark:border-zinc-800">
+                  <tr className="text-left text-xs font-medium muted border-b border-black/5 dark:border-white/10">
                     <th className="py-2 pl-4 pr-3 font-medium">#</th>
                     <th className="py-2 pr-3 font-medium">Command</th>
                     <th className="py-2 pr-3 font-medium">Intent</th>
@@ -120,12 +120,12 @@ export default function HistoryPage() {
                     <th className="py-2 pr-4 font-medium">Reason</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                <tbody className="divide-y divide-black/5 dark:divide-white/10">
                   {filtered.map((t) => {
                     const meta = getStatusMeta(t.status);
                     const Icon = meta.icon;
                     return (
-                      <tr key={t.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/60 transition-colors">
+                      <tr key={t.id} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
                         <td className="py-2 pl-4 pr-3 font-mono text-xs muted tabular-nums">{t.id}</td>
                         <td className="py-2 pr-3 max-w-sm truncate font-mono text-xs heading">{t.command}</td>
                         <td className="py-2 pr-3">
@@ -166,7 +166,7 @@ export default function HistoryPage() {
           )}
 
           {total > 0 && (
-            <div className="px-4 py-2.5 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
+            <div className="px-4 py-2.5 border-t border-black/5 dark:border-white/10 flex items-center justify-between text-xs">
               <span className="muted">
                 Page {page} of {totalPages} · {total} total
               </span>

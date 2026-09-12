@@ -114,7 +114,7 @@ export default function ToolsPage() {
                   aria-expanded={isOpen}
                   className="w-full text-left p-4 flex items-start gap-3"
                 >
-                  <div className="h-9 w-9 rounded-md bg-zinc-100 text-zinc-600 flex items-center justify-center shrink-0 dark:bg-zinc-800 dark:text-zinc-300">
+                  <div className="h-9 w-9 rounded-md bg-violet-500/10 text-violet-600 flex items-center justify-center shrink-0 dark:text-violet-400">
                     <Icon className="h-4.5 w-4.5" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -122,7 +122,7 @@ export default function ToolsPage() {
                       <h3 className="font-mono text-sm font-semibold heading">{tool.name}</h3>
                       <span className="chip text-[10px] capitalize">{tool.category}</span>
                       {tool.destructive && (
-                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded tone-failed bg-red-50 dark:bg-red-500/10">
+                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded tone-failed bg-red-500/10">
                           <AlertTriangle className="h-2.5 w-2.5" />
                           destructive
                         </span>
@@ -144,7 +144,7 @@ export default function ToolsPage() {
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-zinc-200 dark:border-zinc-800 p-4 pt-3 space-y-2">
+                  <div className="border-t border-black/5 dark:border-white/10 p-4 pt-3 space-y-2">
                     <p className="label-caps">Input schema</p>
                     <pre className="json-viewer max-h-80">{JSON.stringify(tool.input_schema, null, 2)}</pre>
                   </div>

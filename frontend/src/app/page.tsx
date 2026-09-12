@@ -23,19 +23,28 @@ interface Stats {
   tools: number;
 }
 
+const STAT_TINTS = [
+  "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
+  "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
+  "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+] as const;
+
 function StatCard({
   label,
   value,
   icon: Icon,
+  tint,
 }: {
   label: string;
   value: string | number;
   icon: React.ElementType;
+  tint: (typeof STAT_TINTS)[number];
 }) {
   return (
     <div className="card p-3.5 flex items-center gap-3">
-      <div className="h-8 w-8 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 text-zinc-500 dark:text-zinc-400">
-        <Icon className="h-4 w-4" />
+      <div className={"h-9 w-9 rounded-xl flex items-center justify-center shrink-0 " + tint}>
+        <Icon className="h-4.5 w-4.5" />
       </div>
       <div className="min-w-0">
         <p className="text-lg font-semibold heading leading-none tabular-nums">{value}</p>
@@ -102,14 +111,15 @@ export default function HomePage() {
     <DashboardShell title="Dashboard">
       <div className="space-y-5">
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard label="Total tasks" value={stats.totalTasks} icon={Activity} />
-          <StatCard label="Success rate" value={`${stats.successRate}%`} icon={CheckCircle2} />
+          <StatCard label="Total tasks" value={stats.totalTasks} icon={Activity} tint={STAT_TINTS[0]} />
+          <StatCard label="Success rate" value={`${stats.successRate}%`} icon={CheckCircle2} tint={STAT_TINTS[1]} />
           <StatCard
             label="Managed containers"
             value={`${stats.managedContainers} / ${stats.totalContainers}`}
             icon={Boxes}
+            tint={STAT_TINTS[2]}
           />
-          <StatCard label="MCP tools" value={stats.tools} icon={Wrench} />
+          <StatCard label="MCP tools" value={stats.tools} icon={Wrench} tint={STAT_TINTS[3]} />
         </section>
 
         <section className="space-y-3.5">

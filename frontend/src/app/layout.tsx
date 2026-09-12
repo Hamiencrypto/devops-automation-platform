@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider, NO_FLASH_SCRIPT } from "@/lib/theme";
 import { AuthProvider } from "@/lib/auth";
 import { ToastProvider } from "@/components/ui/Toast";
+import BackgroundBlobs from "@/components/BackgroundBlobs";
 
 export const metadata: Metadata = {
   title: "DevOps MCP Platform",
@@ -35,6 +36,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <ThemeProvider>
+          <BackgroundBlobs />
           <AuthProvider>
             <ToastProvider>{children}</ToastProvider>
           </AuthProvider>
